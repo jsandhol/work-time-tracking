@@ -30,6 +30,7 @@
             } else {
                 state.added.t = U.toLocaleDateTimeStr();
             }
+            document.querySelector('#newTime').focus();
         }
     };
 
@@ -118,6 +119,7 @@
         state.saved = load();
         calc();
     });
+    let act = false;
 </script>
 
 <section class="section">
@@ -174,7 +176,7 @@
                             <input class="input is-small" type="text" bind:value={state.added.t} />
                         </td>
                         <td>
-                            <input class="input is-small" type="text" bind:value={state.added.r} />
+                            <input id="newTime" class="input is-small" type="text" bind:value={state.added.r} />
                         </td>
                         <td>
                             <input class="input is-small" type="text" bind:value={state.added.d} />
