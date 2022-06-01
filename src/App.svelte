@@ -1,6 +1,11 @@
 <script>
+    /* jshint   esversion: 6 */
+    /* exported set, end, save, reset, del */
+
     import { onMount } from 'svelte';
     import { U } from './utils';
+
+    const MAX_HISTORY = 15;
 
     let state = {
         saved: [],
@@ -11,9 +16,10 @@
         },
         summary: [],
         instructions: true,
+        history: [],
     };
 
-    const setTime = (index) => {
+    const set = (index) => {
         if (index !== undefined) {
             if (U.isNotEmptyStr(state.saved[index].t)) {
                 if (window.confirm('Replace existing time?')) {
@@ -30,13 +36,14 @@
             } else {
                 state.added.t = U.toLocaleDateTimeStr();
             }
-            document.querySelector('#newTime').focus();
+            document.querySelector('#newRef').focus();
         }
     };
 
     const end = () => {
         if (U.isEmptyStr(state.added.t)) state.added.t = U.toLocaleDateTimeStr();
-        if (U.isEmptyStr(state.added.r)) state.added.r = 'END';
+        if (U.isEmptyStr(state.added.r)) state.added.r = '@END';
+        document.querySelector('#newDesc').focus();
     };
 
     const calc = () => {
@@ -57,7 +64,7 @@
         state.summary = [];
 
         state.saved.forEach((obj, index) => {
-            if (obj.r !== 'END') {
+            if (obj.r !== '@END') {
                 let d1 = new Date(obj.t);
                 let d2 = index < state.saved.length - 1 ? new Date(state.saved[index + 1].t) : new Date();
                 updateSummary(obj, d2.getTime() - d1.getTime());
@@ -73,6 +80,23 @@
 
         total.t = U.millisToTime(total.m);
         state.summary.push(total);
+    };
+
+    const loadHistory = () => {
+        let history = window.localStorage.getItem('work-time-history');
+        state.history = U.isNotEmptyStr(history) ? JSON.parse(history) : [];
+    };
+
+    const saveHistory = () => {
+        state.saved.forEach((obj) => {
+            if (obj.r !== '@END') {
+                const index = state.history.indexOf(obj.r);
+                if (index > -1) state.history.splice(index, 1);
+                state.history.unshift(obj.r);
+                state.history = state.history.slice(0, MAX_HISTORY);
+                window.localStorage.setItem('work-time-history', JSON.stringify(state.history));
+            }
+        });
     };
 
     const load = () => {
@@ -91,19 +115,19 @@
         }
         localStorage.setItem('work-time-data', JSON.stringify(state.saved));
         calc();
+        saveHistory();
     };
 
     const reset = () => {
         if (window.confirm('Remove all data and start from scratch?')) {
-            state = {
-                saved: [],
-                added: {
-                    t: undefined,
-                    r: undefined,
-                    d: undefined,
-                },
-                summary: [],
+            state.saved = [];
+            state.added = {
+                t: undefined,
+                r: undefined,
+                d: undefined,
             };
+            state.summary = [];
+            state.instructions = true;
             localStorage.setItem('work-time-data', undefined);
         }
     };
@@ -118,9 +142,15 @@
     onMount(() => {
         state.saved = load();
         calc();
+        loadHistory();
     });
-    let act = false;
 </script>
+
+<datalist id="history-refs">
+    {#each state.history as ref}
+        <option value={ref} />
+    {/each}
+</datalist>
 
 <section class="section">
     <h4 class="title is-4">Work Time Tracking</h4>
@@ -140,7 +170,7 @@
                     {#each state.saved as entry, index}
                         <tr>
                             <td>
-                                <button class="button is-small is-warning" on:click={() => setTime(index)}>
+                                <button class="button is-small is-warning" on:click={() => set(index)}>
                                     <span class="icon is-small">
                                         <i class="far fa-plus-square" />
                                     </span>
@@ -150,7 +180,7 @@
                                 <input class="input is-small" type="text" bind:value={entry.t} />
                             </td>
                             <td>
-                                <input class="input is-small" type="text" bind:value={entry.r} />
+                                <input class="input is-small" type="text" list="history-refs" bind:value={entry.r} />
                             </td>
                             <td>
                                 <input class="input is-small" type="text" bind:value={entry.d} />
@@ -166,7 +196,7 @@
                     {/each}
                     <tr>
                         <td>
-                            <button class="button is-small is-primary" on:click={() => setTime()}>
+                            <button class="button is-small is-primary" on:click={() => set()}>
                                 <span class="icon is-small">
                                     <i class="far fa-plus-square" />
                                 </span>
@@ -176,13 +206,13 @@
                             <input class="input is-small" type="text" bind:value={state.added.t} />
                         </td>
                         <td>
-                            <input id="newTime" class="input is-small" type="text" bind:value={state.added.r} />
+                            <input id="newRef" class="input is-small" type="text" list="history-refs" bind:value={state.added.r} />
                         </td>
                         <td>
-                            <input class="input is-small" type="text" bind:value={state.added.d} />
+                            <input id="newDesc" class="input is-small" type="text" bind:value={state.added.d} />
                         </td>
                         <td>
-                            <button class="button is-small is-primary" on:click={end}>
+                            <button class="button is-small is-info" on:click={end}>
                                 <span class="icon is-small">
                                     <i class="fas fa-power-off" />
                                 </span>
@@ -202,7 +232,7 @@
                 </thead>
                 <tbody>
                     {#each state.summary as item}
-                        {#if item.r !== 'END'}
+                        {#if item.r !== '@END'}
                             <tr>
                                 <td>{item.r}</td>
                                 <td>{item.t}</td>
@@ -236,7 +266,7 @@
                     <button class="delete" on:click={() => (state.instructions = false)} />
                     <div class="block">
                         This tool will collect your daily work time and summarize it by reference. You would typically use JIRA id (or some other incident system id) as the reference. Start by
-                        clicking the green plus button at the bottom of the table. Use 'END' as the last entry reference for the day (or click the power off button).
+                        clicking the green plus button at the bottom of the table. Use '@END' as the last entry reference for the day (or click the power off button).
                     </div>
                     <div class="block">Reset will erase all information and start from scratch.</div>
                     <div class="block">
