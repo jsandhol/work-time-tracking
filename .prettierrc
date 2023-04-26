@@ -2,9 +2,7 @@
     "printWidth": 192,
     "tabWidth": 4,
     "singleQuote": true,
-    "svelteSortOrder": "options-scripts-markup-styles",
-    "svelteStrictMode": false,
-    "svelteBracketNewLine": false,
-    "svelteAllowShorthand": true,
-    "svelteIndentScriptAndStyle": true
+    "arrowParens": "avoid",
+    "jsxBracketSameLine": true,
+    "bracketSameLine": true
 }
