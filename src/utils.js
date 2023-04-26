@@ -88,8 +88,11 @@ export const _WTT = (function () {
         };
 
         const compareTodos = (a, b) => {
-            if (a.title.toLowerCase() > b.title.toLowerCase()) return 1;
-            if (a.title.toLowerCase() < b.title.toLowerCase()) return -1;
+            let as = `${a.due.toLowerCase()}.${a.title.toLowerCase()}`;
+            let bs = `${b.due.toLowerCase()}.${b.title.toLowerCase()}`;
+
+            if (as > bs) return 1;
+            if (as < bs) return -1;
             return 0;
         };
 
