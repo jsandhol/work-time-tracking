@@ -87,6 +87,31 @@ export const _WTT = (function () {
             data.history.snippets = ['bash', 'basic', 'dos', 'html', 'java', 'javascript', 'json', 'sql', 'text', 'typescript', 'xml'];
         };
 
+        const compareTodos = (a, b) => {
+            if (a.title.toLowerCase() > b.title.toLowerCase()) return 1;
+            if (a.title.toLowerCase() < b.title.toLowerCase()) return -1;
+            return 0;
+        };
+
+        const compareNotes = (a, b) => {
+            if (a.category.toLowerCase() > b.category.toLowerCase()) return 1;
+            if (a.category.toLowerCase() < b.category.toLowerCase()) return -1;
+            return 0;
+        };
+
+        const compareSnippets = (a, b) => {
+            let as = `${a.lang.toLowerCase()}.${a.title.toLowerCase()}`;
+            let bs = `${b.lang.toLowerCase()}.${b.title.toLowerCase()}`;
+
+            if (as > bs) return 1;
+            if (as < bs) return -1;
+            return 0;
+        };
+
+        data.todos.sort(compareTodos);
+        data.notes.sort(compareNotes);
+        data.snippets.sort(compareSnippets);
+        
         updateHistory(data);
         window.localStorage.setItem('wtt-data', JSON.stringify(data));
         return { ...data };
