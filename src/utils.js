@@ -1,6 +1,10 @@
 export const _WTT = (function () {
     const api = {};
 
+    api.isTrue = variant => {
+        return variant !== undefined && variant !== null && String(variant).toLowerCase() === 'true';
+    };
+
     api.isNotEmptyStr = str => {
         return str !== undefined && str !== null && String(str) !== '';
     };
@@ -88,8 +92,10 @@ export const _WTT = (function () {
         };
 
         const compareTodos = (a, b) => {
-            let as = `${a.due.toLowerCase()}.${a.title.toLowerCase()}`;
-            let bs = `${b.due.toLowerCase()}.${b.title.toLowerCase()}`;
+            let ad = api.isTrue(a.done) ? 'z' : 'a';
+            let bd = api.isTrue(b.done) ? 'z' : 'a';
+            let as = `${ad}.${a.due.toLowerCase()}.${a.title.toLowerCase()}`;
+            let bs = `${bd}.${b.due.toLowerCase()}.${b.title.toLowerCase()}`;
 
             if (as > bs) return 1;
             if (as < bs) return -1;

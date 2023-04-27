@@ -53,7 +53,7 @@
             <tr>
                 <td><input class="input is-small" type="text" bind:value={todo.title} /></td>
                 <td><input class="input is-small" type="text" bind:value={todo.due} /></td>
-                <td class="has-text-centered" style="vertical-align: middle;"><input type="checkbox" checked={todo.done} /></td>
+                <td class="has-text-centered" style="vertical-align: middle;"><input type="checkbox" bind:checked={todo.done} /></td>
                 <td>
                     <Button clas="is-danger" icon="far fa-trash-alt" on:click={() => del(index)} />
                 </td>
