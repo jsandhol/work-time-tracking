@@ -79,8 +79,8 @@
             <th class="col-last">&nbsp;</th>
         </tr>
         <tr>
-            <td
-                ><input
+            <td>
+                <input
                     class="input is-small"
                     type="text"
                     placeholder="Filter Category"

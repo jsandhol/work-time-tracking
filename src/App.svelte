@@ -29,7 +29,7 @@
                     <div class="tabs">
                         <ul>
                             <li class:is-active={tab === 0}><a href={'#'} on:click={() => (tab = 0)}>Info</a></li>
-                            <li class:is-active={tab === 1}><a href={'#'} on:click={() => (tab = 1)}>ToDo ({data.todos.length})</a></li>
+                            <li class:is-active={tab === 1}><a href={'#'} on:click={() => (tab = 1)}>ToDo ({data.todos.filter(t => t.done !== true).length})</a></li>
                             <li class:is-active={tab === 2}><a href={'#'} on:click={() => (tab = 2)}>Notes ({data.notes.length})</a></li>
                             <li class:is-active={tab === 3}><a href={'#'} on:click={() => (tab = 3)}>Snippets ({data.snippets.length})</a></li>
                         </ul>
