@@ -66,7 +66,7 @@
 </script>
 
 <datalist id="history-note">
-    {#each data.history.notes as ref}
+    {#each data.history.notes.reverse() as ref}
         <option value={ref} />
     {/each}
 </datalist>
