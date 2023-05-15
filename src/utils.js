@@ -72,8 +72,10 @@ export const _WTT = (function () {
 
     api.storeData = data => {
         const updateHistory = data => {
+            const isValid = h => api.isNotEmptyStr(h) && h !== '@END' && String(h) !== 'undefined' && String(h) !== 'null';
+
             data.times.forEach(e => {
-                if (e.ref !== '@END') {
+                if (isValid(e.ref)) {
                     let index = data.history.times.indexOf(e.ref);
                     if (index > -1) data.history.times.splice(index, 1);
                     data.history.times.push(e.ref);
@@ -82,9 +84,11 @@ export const _WTT = (function () {
             data.history.times = data.history.times.slice(data.config.history * -1);
 
             data.notes.forEach(e => {
-                let index = data.history.notes.indexOf(e.category);
-                if (index > -1) data.history.notes.splice(index, 1);
-                data.history.notes.push(e.category);
+                if (isValid(e.category)) {
+                    let index = data.history.notes.indexOf(e.category);
+                    if (index > -1) data.history.notes.splice(index, 1);
+                    data.history.notes.push(e.category);
+                }
             });
             data.history.notes = data.history.notes.slice(data.config.history * -1);
 
@@ -120,7 +124,7 @@ export const _WTT = (function () {
         data.todos.sort(compareTodos);
         data.notes.sort(compareNotes);
         data.snippets.sort(compareSnippets);
-        
+
         updateHistory(data);
         window.localStorage.setItem('wtt-data', JSON.stringify(data));
         return { ...data };
