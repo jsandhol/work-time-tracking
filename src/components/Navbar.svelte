@@ -1,124 +1,171 @@
 <script>
-    import { _WTT } from '../utils';
+    import ActionButton from './ActionButton.svelte';
+    import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+    import Check from '@lucide/svelte/icons/check';
+    import Monitor from '@lucide/svelte/icons/monitor';
+    import Moon from '@lucide/svelte/icons/moon';
+    import Save from '@lucide/svelte/icons/save';
+    import Sun from '@lucide/svelte/icons/sun';
+    import { app, notify, resetAll, resetTime, saveNow } from '$lib/store.svelte.js';
+    import { theme } from '$lib/theme.svelte.js';
 
-    export let data;
-    export let messages = [];
+    let searchGoogle = $state('');
+    let searchGoogleAi = $state('');
+    let searchIssues = $state('');
+    let searchReddit = $state('');
+    let searchSof = $state('');
+    let linksEl = $state();
 
-    const save = withMessage => {
-        data = _WTT.storeData(data);
-        if (withMessage) {
-            messages.push(withMessage);
-            messages = [...messages];
+    const themeIcon = $derived(theme.mode === 'system' ? Monitor : theme.mode === 'light' ? Sun : Moon);
+    const themeLabel = $derived(
+        theme.mode === 'system'
+            ? 'Theme: system (click for light)'
+            : theme.mode === 'light'
+              ? 'Theme: light (click for dark)'
+              : 'Theme: dark (click for system)'
+    );
+
+    function openSearch(prefix, value, encoder = encodeURIComponent) {
+        const term = value.trim();
+        if (!prefix || !term) return;
+        window.open(`${prefix}${encoder(term)}`, '_blank', 'noopener,noreferrer');
+    }
+
+    function onSearchKey(event, prefix, value, encoder = encodeURIComponent) {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        openSearch(prefix, value, encoder);
+    }
+
+    function cycleTheme() {
+        try {
+            theme.cycle();
+        } catch (error) {
+            notify(`Could not save the theme: ${error instanceof Error ? error.message : String(error)}`, 'error');
         }
-    };
+    }
 
-    const resetTime = () => {
-        if (confirm('Really want to reset time data?')) {
-            data.times = [];
-            data.summary.categories = [];
-            data.summary.total = undefined;
-            save('Time data reset.');
+    function doResetTime() {
+        if (confirm('Really want to reset time data?')) resetTime();
+    }
+
+    function doResetAll() {
+        if (confirm('Really want to reset time and todos (notes, snippets and config remain)?')) resetAll();
+    }
+
+    function closeLinks() {
+        if (linksEl) linksEl.open = false;
+    }
+
+    function onWindowClick(event) {
+        if (linksEl?.open && !linksEl.contains(event.target)) linksEl.open = false;
+    }
+
+    function onWindowKeydown(event) {
+        if (event.key === 'Escape' && linksEl) linksEl.open = false;
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+            event.preventDefault();
+            saveNow();
         }
-    };
-
-    const resetAll = () => {
-        if (confirm('Really want to reset time and todos (notes, snippets and config remains)?')) {
-            data.times = [];
-            data.todos = [];
-            data.summary.categories = [];
-            data.summary.total = undefined;
-            save('All data reset.');
-        }
-    };
-
-    let valGoogle;
-    let valIssues;
-    let valReddit;
-    let valSOF;
-    let isActive = false;
-
-    const searchGoogle = e => {
-        if (e.key === 'Enter') {
-            window.open(`${data.config.search.google}${valGoogle}`, '_blank');
-        }
-    };
-
-    const searchIssues = e => {
-        if (e.key === 'Enter') {
-            window.open(`${data.config.search.issues}${valIssues}`, '_blank');
-        }
-    };
-
-    const searchReddit = e => {
-        if (e.key === 'Enter') {
-            window.open(`${data.config.search.reddit}${valReddit}`, '_blank');
-        }
-    };
-
-    const searchSOF = e => {
-        if (e.key === 'Enter') {
-            window.open(`${data.config.search.sof}${valSOF}`, '_blank');
-        }
-    };
+    }
 </script>
 
-<nav class="navbar is-light" aria-label="main navigation">
-    <div class="navbar-brand">
-        <a class="navbar-item" href={'#'}>
-            <img src="wtt.png" alt="WTT" />
+<svelte:window onclick={onWindowClick} onkeydown={onWindowKeydown} />
+
+<header class="app-topbar">
+    <div class="topbar-inner">
+        <a class="brand" href="#app" aria-label="Work Time Tracking">
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+                <path d="M32 8 52 28 32 48 12 28Z" fill="var(--accent)"></path>
+                <path d="M9 35 32 58 55 35" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+            <span>Work time</span>
         </a>
-        <a href={'#'} role="button" class="navbar-burger" aria-label="menu" aria-expanded="false" data-target="navbarContent" on:click={() => (isActive = !isActive)}>
-            <span aria-hidden="true" />
-            <span aria-hidden="true" />
-            <span aria-hidden="true" />
-        </a>
-    </div>
-    <div id="navbarContent" class="navbar-menu" class:is-active={isActive}>
-        <div class="navbar-start">
-            {#if data.config.links.length > 0}
-                <div class="navbar-item has-dropdown is-hoverable">
-                    <a class="navbar-link" href={'#'}> Links </a>
-                    <div class="navbar-dropdown">
-                        {#each data.config.links as link}
-                            <a class="navbar-item" target="_blank" href={link.href}> {link.title} </a>
-                        {/each}
-                    </div>
+
+        {#if app.data.config.links.length > 0}
+            <details class="links-menu" bind:this={linksEl}>
+                <summary class="btn">Links</summary>
+                <div class="links-dropdown">
+                    {#each app.data.config.links as link (link)}
+                        <a href={link.href} target="_blank" rel="noopener noreferrer" onclick={closeLinks}>{link.title || link.href}</a>
+                    {/each}
                 </div>
+            </details>
+        {/if}
+
+        <div class="topbar-spacer"></div>
+
+        <div class="topbar-section">
+            {#if app.data.config.search.google}
+                <input
+                    class="search-input"
+                    type="search"
+                    placeholder="Google"
+                    aria-label="Search Google"
+                    bind:value={searchGoogle}
+                    onkeydown={event => onSearchKey(event, app.data.config.search.google, searchGoogle)}
+                    ondblclick={() => (searchGoogle = '')} />
+            {/if}
+            {#if app.data.config.search.google_ai}
+                <input
+                    class="search-input"
+                    type="search"
+                    placeholder="Ask AI"
+                    aria-label="Ask Google AI Mode"
+                    bind:value={searchGoogleAi}
+                    onkeydown={event => onSearchKey(event, app.data.config.search.google_ai, searchGoogleAi)}
+                    ondblclick={() => (searchGoogleAi = '')} />
+            {/if}
+            {#if app.data.config.search.issues}
+                <input
+                    class="search-input"
+                    type="search"
+                    placeholder="Issue"
+                    aria-label="Search issue"
+                    bind:value={searchIssues}
+                    onkeydown={event => onSearchKey(event, app.data.config.search.issues, searchIssues, encodeURI)}
+                    ondblclick={() => (searchIssues = '')} />
+            {/if}
+            {#if app.data.config.search.reddit}
+                <input
+                    class="search-input"
+                    type="search"
+                    placeholder="Reddit"
+                    aria-label="Search Reddit"
+                    bind:value={searchReddit}
+                    onkeydown={event => onSearchKey(event, app.data.config.search.reddit, searchReddit)}
+                    ondblclick={() => (searchReddit = '')} />
+            {/if}
+            {#if app.data.config.search.sof}
+                <input
+                    class="search-input"
+                    type="search"
+                    placeholder="SOF"
+                    aria-label="Search Stack Overflow"
+                    bind:value={searchSof}
+                    onkeydown={event => onSearchKey(event, app.data.config.search.sof, searchSof)}
+                    ondblclick={() => (searchSof = '')} />
             {/if}
         </div>
-        <div class="navbar-end">
-            <div class="navbar-item">
-                <div class="field is-grouped">
-                    <p class="control">
-                        {#if _WTT.isNotEmptyStr(data.config.search.google)}
-                            <input class="input is-small" type="text" placeholder="Search Google" bind:value={valGoogle} on:keyup={searchGoogle} on:dblclick={() => (valGoogle = undefined)} />
-                        {/if}
-                        {#if _WTT.isNotEmptyStr(data.config.search.reddit)}
-                            <input class="input is-small" type="text" placeholder="Search Reddit" bind:value={valReddit} on:keyup={searchReddit} on:dblclick={() => (valReddit = undefined)} />
-                        {/if}
-                        {#if _WTT.isNotEmptyStr(data.config.search.sof)}
-                            <input class="input is-small" type="text" placeholder="Search SOF" bind:value={valSOF} on:keyup={searchSOF} on:dblclick={() => (valSOF = undefined)} />
-                        {/if}
-                        {#if _WTT.isNotEmptyStr(data.config.search.issues)}
-                            <input class="input is-small" type="text" placeholder="Search Issues" bind:value={valIssues} on:keyup={searchIssues} on:dblclick={() => (valIssues = undefined)} />
-                        {/if}
-                    </p>
-                </div>
-            </div>
-            <div class="navbar-item">
-                <div class="field is-grouped">
-                    <p class="control">
-                        <a href={'#'} class="button is-warning" on:click={() => resetTime()}>Reset Time</a>
-                        <a href={'#'} class="button is-danger" on:click={() => resetAll()}>Reset All</a>
-                    </p>
-                </div>
-            </div>
+
+        <div class="topbar-section">
+            <button
+                type="button"
+                class="btn save-button {app.saveStatus}"
+                disabled={app.saveStatus === 'saved'}
+                title={app.saveStatus === 'dirty' ? 'Save changes to local storage' : app.saveStatus === 'error' ? 'Retry saving' : 'All changes saved'}
+                onclick={saveNow}>
+                {#if app.saveStatus === 'saved'}
+                    <Check size={13} aria-hidden="true" /> Saved
+                {:else if app.saveStatus === 'error'}
+                    <AlertTriangle size={13} aria-hidden="true" /> Retry save
+                {:else}
+                    <Save size={13} aria-hidden="true" /> Save changes
+                {/if}
+            </button>
+            <ActionButton label={themeLabel} icon={themeIcon} onclick={cycleTheme} />
+            <button type="button" class="btn btn-warning" onclick={doResetTime}>Reset time</button>
+            <button type="button" class="btn btn-danger" onclick={doResetAll}>Reset all</button>
         </div>
     </div>
-</nav>
-
-<style>
-    input {
-        width: 125px;
-    }
-</style>
+</header>

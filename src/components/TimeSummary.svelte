@@ -1,73 +1,58 @@
 <script>
-    import { _WTT } from '../utils';
+    import ActionButton from './ActionButton.svelte';
+    import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+    import { app } from '$lib/store.svelte.js';
+    import { calcTotals } from '../utils.js';
 
-    export let data;
+    let refreshTick = $state(0);
+    const totals = $derived.by(() => {
+        void refreshTick;
+        return calcTotals(app.data.times, Date.now());
+    });
 
-    let totals = [];
-
-    const calc = data => {
-        let summary = [];
-
-        const updateSummary = (obj, millis) => {
-            let found = false;
-
-            for (const s of summary) {
-                if (s.ref === obj.ref) {
-                    s.millis = s.millis + millis;
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found) summary.push({ ref: obj.ref, time: undefined, millis });
-        };
-
-        const calcGrandTotal = () => {
-            const total = { ref: 'Grand Total', time: undefined, millis: 0 };
-
-            summary.forEach(s => {
-                s.time = _WTT.millisToTime(s.millis);
-                total.millis = total.millis + s.millis;
-            });
-
-            total.time = _WTT.millisToTime(total.millis);
-
-            return total;
-        };
-
-        data.times.forEach((obj, index) => {
-            if (obj.ref !== '@END') {
-                let d1 = new Date(obj.time);
-                let d2 = data.times[index + 1] ? new Date(data.times[index + 1].time) : new Date();
-                updateSummary(obj, d2.getTime() - d1.getTime());
-            }
-        });
-
-        summary.push(calcGrandTotal());
-
-        return summary;
-    };
-
-    $: totals = calc(data);
+    function refresh() {
+        refreshTick += 1;
+    }
 </script>
 
-<table class="table is-striped is-narrow is-hoverable is-fullwidth">
-    <thead>
-        <th>Reference</th>
-        <th>Total</th>
-    </thead>
-    <tbody>
-        {#each totals as t}
-            <tr>
-                <td class:is-bold={t.ref === 'Grand Total'}>{t.ref}</td>
-                <td class:is-bold={t.ref === 'Grand Total'}>{t.time}</td>
-            </tr>
-        {/each}
-    </tbody>
-</table>
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Time summary</h2>
+        <ActionButton label="Refresh totals" icon={RefreshCw} compact onclick={refresh} />
+    </div>
 
-<style>
-    .is-bold {
-        font-weight: bold;
-    }
-</style>
+    <table class="table summary-table">
+        <thead>
+            <tr>
+                <th scope="col">Reference</th>
+                <th scope="col" class="num">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {#each totals.rows as row (row.ref)}
+                <tr>
+                    <td>
+                        {row.ref}
+                        {#if row.invalid}
+                            <span class="summary-invalid" title="Some intervals have invalid or out-of-order times">!</span>
+                        {/if}
+                    </td>
+                    <td class="num">{row.time}</td>
+                </tr>
+            {/each}
+            {#if totals.rows.length === 0}
+                <tr>
+                    <td colspan="2" class="muted">No time rows yet.</td>
+                </tr>
+            {/if}
+            <tr class="summary-total">
+                <td>GRAND TOTAL</td>
+                <td class="num">{totals.total.time}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    {#if totals.hasInvalid}
+        <div class="card-body summary-warning">Some rows have invalid or out-of-order times; those intervals are excluded from the totals.</div>
+    {/if}
+</div>

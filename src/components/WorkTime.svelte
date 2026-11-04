@@ -1,139 +1,182 @@
 <script>
-    import { _WTT } from '../utils';
-    import Button from './Button.svelte';
+    import ActionButton from './ActionButton.svelte';
+    import Check from '@lucide/svelte/icons/check';
+    import Clock from '@lucide/svelte/icons/clock';
+    import Power from '@lucide/svelte/icons/power';
+    import Search from '@lucide/svelte/icons/search';
+    import Square from '@lucide/svelte/icons/square';
+    import Trash2 from '@lucide/svelte/icons/trash-2';
+    import { addTime, app, beginTime, markDirty, notify, removeTime, saveNow } from '$lib/store.svelte.js';
+    import { formatDateTime } from '../utils.js';
 
-    export let data;
-    export let messages = [];
+    let newTime = $state('');
+    let newRef = $state('');
+    let newDesc = $state('');
+    let timeInput = $state();
+    let refInput = $state();
+    let descInput = $state();
 
-    let addTime;
-    let addRef;
-    let addDesc;
+    const issueSearch = $derived(app.data.config.search.issues);
 
-    const save = withMessage => {
-        data = _WTT.storeData(data);
-        if (withMessage) {
-            messages.push(withMessage);
-            messages = [...messages];
+    function startNow() {
+        newTime = formatDateTime();
+        refInput?.focus();
+    }
+
+    function endNow() {
+        newTime = formatDateTime();
+        newRef = '@END';
+        newDesc = '';
+        descInput?.focus();
+    }
+
+    function commit() {
+        if (!newTime.trim()) {
+            notify('Set a time before adding the row.', 'warning');
+            timeInput?.focus();
+            return;
         }
-    };
 
-    const add = () => {
-        addTime = _WTT.dateTimeToStr();
-        document.getElementById('addRef').focus();
-    };
+        addTime({ time: newTime, ref: newRef, desc: newDesc });
+        newTime = '';
+        newRef = '';
+        newDesc = '';
+        refInput?.focus();
+    }
 
-    const set = () => {
-        if (_WTT.isNotEmptyStr(addTime)) {
-            data.times.push({
-                time: addTime,
-                ref: addRef,
-                desc: addDesc,
-            });
-            save(`Added with ref ${addRef}.`);
-            addTime = undefined;
-            addRef = undefined;
-            addDesc = undefined;
-        } else {
-            save(`Saved data.`);
-        }
-    };
+    function onAddKeydown(event) {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        commit();
+    }
 
-    const del = index => {
-        if (confirm('Really want to remove row?')) {
-            data.times.splice(index, 1);
-            save(`Removed row from index ${index}.`);
-        }
-    };
+    function begin(time) {
+        if (confirm('Really want to replace time?')) beginTime(time);
+    }
 
-    const end = () => {
-        addTime = _WTT.dateTimeToStr();
-        addRef = '@END';
-        addDesc = undefined;
-        document.getElementById('addDesc').focus();
-    };
+    function remove(time) {
+        if (confirm('Really want to remove row?')) removeTime(time);
+    }
 
-    const beg = index => {
-        if (confirm('Really want to replace time?')) {
-            data.times[index].time = _WTT.dateTimeToStr();
-            save(`Time replaced at index ${index}.`);
-        }
-    };
+    function openIssue(ref) {
+        const key = String(ref ?? '').trim();
+        if (!issueSearch || !key) return;
+        window.open(`${issueSearch}${encodeURI(key)}`, '_blank', 'noopener,noreferrer');
+    }
+
+    function toggleReported(time, systemId) {
+        if (!time.reported) time.reported = {};
+        if (time.reported[systemId]) delete time.reported[systemId];
+        else time.reported[systemId] = formatDateTime();
+        saveNow();
+    }
+
+    function allReported(time) {
+        const systems = app.data.config.reporting.systems;
+        return systems.length > 0 && systems.every(system => Boolean(time.reported?.[system.id]));
+    }
 </script>
 
 <datalist id="history-refs">
-    {#each data.history.times.reverse() as ref}
-        <option value={ref} />
+    {#each app.data.history.times as ref (ref)}
+        <option value={ref}></option>
     {/each}
 </datalist>
 
-<table class="table is-striped is-narrow is-hoverable is-fullwidth">
-    <thead>
-        <tr>
-            <th class="col-first">&nbsp;</th>
-            <th class="col-time">Time</th>
-            <th class="col-ref">Reference</th>
-            <th>Description</th>
-            <th class="col-last">&nbsp;</th>
-        </tr>
-    </thead>
-    <tbody>
-        {#each data.times as time, index}
-            <tr>
-                <td>
-                    <Button clas="is-warning" icon="far fa-clock" on:click={() => beg(index)} />
-                </td>
-                <td><input class="input is-small" type="text" bind:value={time.time} /></td>
-                <td><input class="input is-small" type="text" list="history-refs" bind:value={time.ref} /></td>
-                <td><input class="input is-small" type="text" bind:value={time.desc} /></td>
-                <td>
-                    <div class="field is-grouped">
-                        <p class="control">
-                            <Button clas="is-danger" icon="far fa-trash-alt" on:click={() => del(index)} />
-                            <Button icon="fas fa-search" on:click={() => window.open(`${data.config.search.issues}${time.ref}`, '_blank')} />
-                        </p>
-                    </div>
-                </td>
-            </tr>
-        {/each}
-    </tbody>
-    <tfoot>
-        <tr>
-            <th class="col-first">&nbsp;</th>
-            <th class="col-time">New Time</th>
-            <th class="col-ref">New Reference</th>
-            <th>New Description</th>
-            <th class="col-last">&nbsp;</th>
-        </tr>
-        <tr>
-            <td>
-                <Button clas="is-success" icon="far fa-clock" on:click={() => add()} />
-            </td>
-            <td><input id="addTime" class="input is-small" type="text" bind:value={addTime} /></td>
-            <td><input id="addRef" class="input is-small" type="text" list="history-refs" bind:value={addRef} /></td>
-            <td><input id="addDesc" class="input is-small" type="text" bind:value={addDesc} /></td>
-            <td>
-                <div class="field is-grouped">
-                    <p class="control">
-                        <Button clas="is-success" icon="fas fa-check" on:click={() => set()} />
-                        <Button clas="is-info" icon="fas fa-power-off" on:click={() => end()} />
-                    </p>
-                </div>
-            </td>
-        </tr>
-    </tfoot>
-</table>
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Work time</h2>
+        <span class="muted">{app.data.times.length} rows</span>
+    </div>
 
-<style>
-    .col-first {
-        width: 40px;
-    }
-    .col-time {
-        width: 150px;
-    }
-    .col-ref {
-        width: 200px;
-    }
-    .col-last {
-        width: 80px;
-    }
-</style>
+    <div class="table-wrap">
+        <table class="table table-wide">
+            <thead>
+                <tr>
+                    <th scope="col" class="col-mark" aria-label="Set time"></th>
+                    <th scope="col" class="col-time">Time</th>
+                    <th scope="col" class="col-ref">Reference</th>
+                    <th scope="col">Description</th>
+                    <th scope="col" class="col-row-actions" aria-label="Actions"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {#each app.data.times as time (time)}
+                    <tr>
+                        <td class="col-mark"><ActionButton label="Set this row's time to now" icon={Clock} variant="warning" onclick={() => begin(time)} /></td>
+                        <td><input class="mono" type="text" aria-label="Time" bind:value={time.time} oninput={markDirty} /></td>
+                        <td class="col-ref">
+                            <div class="ref-field">
+                                <input type="text" aria-label="Reference" list="history-refs" bind:value={time.ref} oninput={markDirty} />
+                                <ActionButton
+                                    label="Open issue in a new tab"
+                                    icon={Search}
+                                    compact
+                                    disabled={!issueSearch || !time.ref.trim() || time.ref === '@END'}
+                                    onclick={() => openIssue(time.ref)} />
+                            </div>
+                        </td>
+                        <td><input type="text" aria-label="Description" bind:value={time.desc} oninput={markDirty} /></td>
+                        <td class="col-row-actions">
+                            <ActionButton label="Delete row" icon={Trash2} variant="danger" onclick={() => remove(time)} />
+                        </td>
+                    </tr>
+                    {#if time.ref === '@END'}
+                        <tr class="report-row {allReported(time) ? 'complete' : ''}">
+                            <td colspan="5">
+                                <div class="report-controls">
+                                    <span class="muted" title="Tick each system once you have manually entered this work time into that customer's system, or your own.">Work time reported to</span>
+                                    {#if app.data.config.reporting.systems.length === 0}
+                                        <span class="muted">No reporting systems configured</span>
+                                    {:else}
+                                        {#each app.data.config.reporting.systems as system (system.id)}
+                                            {@const isReported = Boolean(time.reported?.[system.id])}
+                                            {@const reportedAt = time.reported?.[system.id]}
+                                            <button
+                                                type="button"
+                                                class="report-chip {isReported ? 'done' : ''}"
+                                                aria-pressed={isReported}
+                                                title={isReported ? `Reported at ${reportedAt}` : 'Click to confirm this work time has been entered into this system'}
+                                                onclick={() => toggleReported(time, system.id)}>
+                                                {#if isReported}
+                                                    <Check size={12} aria-hidden="true" />
+                                                    <span>{system.label || system.id}</span>
+                                                    <span class="report-time">{reportedAt.slice(11, 16)}</span>
+                                                {:else}
+                                                    <Square size={12} aria-hidden="true" />
+                                                    <span>{system.label || system.id}</span>
+                                                {/if}
+                                            </button>
+                                        {/each}
+                                        {#if allReported(time)}
+                                            <span class="report-complete-label">All reported</span>
+                                        {/if}
+                                    {/if}
+                                </div>
+                            </td>
+                        </tr>
+                    {/if}
+                {/each}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="add-bar">
+        <ActionButton label="Set new time to now" icon={Clock} variant="success" onclick={startNow} />
+        <input class="mono add-time" type="text" placeholder="New time" aria-label="New time" bind:this={timeInput} bind:value={newTime} onkeydown={onAddKeydown} />
+        <div class="ref-field add-ref">
+            <input type="text" placeholder="New reference" aria-label="New reference" list="history-refs" bind:this={refInput} bind:value={newRef} onkeydown={onAddKeydown} />
+            <ActionButton
+                label="Open issue in a new tab"
+                icon={Search}
+                compact
+                disabled={!issueSearch || !newRef.trim()}
+                onclick={() => openIssue(newRef)} />
+        </div>
+        <input class="add-desc" type="text" placeholder="New description" aria-label="New description" bind:this={descInput} bind:value={newDesc} onkeydown={onAddKeydown} />
+        <div class="add-actions">
+            <ActionButton label="Add time row" icon={Check} variant="success" onclick={commit} />
+            <ActionButton label="End this session (@END)" icon={Power} variant="accent" onclick={endNow} />
+        </div>
+    </div>
+</div>

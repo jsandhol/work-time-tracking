@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+        <title>Work Time Tracking</title>
+
+        <link
+            rel="icon"
+            href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230f3b4c'/%3E%3Cpath d='M32 9 51 28 32 47 13 28Z' fill='%2317a2a2'/%3E%3Cpath d='M9 35 32 58 55 35' fill='none' stroke='%23d8f3f1' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+
+        <script>
+            (() => {
+                const stored = localStorage.getItem('wtt-theme');
+                const mode = stored === 'light' || stored === 'dark' ? stored : 'system';
+                const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const resolved = mode === 'system' ? (dark ? 'dark' : 'light') : mode;
+                const root = document.documentElement;
+                root.dataset.theme = resolved;
+                root.dataset.themeMode = mode;
+                root.style.colorScheme = resolved;
+                root.style.backgroundColor = resolved === 'dark' ? '#0f141a' : '#f4f6f8';
+            })();
+        </script>
+    </head>
+
+    <body>
+        <div id="app"></div>
+        <script type="module" src="/src/main.js"></script>
+    </body>
+</html>

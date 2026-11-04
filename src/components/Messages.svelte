@@ -1,21 +1,25 @@
 <script>
-    export let messages = [];
-
-    const del = index => {
-        messages.splice(index, 1);
-        messages = [...messages];
-    };
+    import X from '@lucide/svelte/icons/x';
+    import { app, clearMessages, dismissMessage } from '$lib/store.svelte.js';
 </script>
 
-{#if messages.length > 0}
-    {#each messages as message, index}
-        <div class="notification m-1 p-2">
-            <button class="delete" on:click={() => del(index)} />
-            {message}
+{#if app.messages.length > 0}
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Messages</h2>
+            {#if app.messages.length > 1}
+                <button type="button" class="btn" onclick={clearMessages}>Clear all</button>
+            {/if}
         </div>
-    {/each}
-
-    <div class="is-pulled-right">
-        <a href={'#'} alt="clear all message" on:click={() => (messages = [])}>Clear All Messages</a>
+        <div class="card-body message-list" aria-live="polite" aria-atomic="false">
+            {#each app.messages as message (message.id)}
+                <div class="message {message.tone}" role={message.tone === 'error' ? 'alert' : undefined}>
+                    <span class="message-text">{message.text}</span>
+                    <button type="button" class="message-close" aria-label="Dismiss message" onclick={() => dismissMessage(message.id)}>
+                        <X size={13} aria-hidden="true" />
+                    </button>
+                </div>
+            {/each}
+        </div>
     </div>
 {/if}

@@ -1,68 +1,97 @@
 <script>
-    import CodeSnippets from './components/CodeSnippets.svelte';
+    import ActionButton from './components/ActionButton.svelte';
+    import ChevronDown from '@lucide/svelte/icons/chevron-down';
+    import ChevronUp from '@lucide/svelte/icons/chevron-up';
     import Config from './components/Config.svelte';
+    import CodeSnippets from './components/CodeSnippets.svelte';
     import Messages from './components/Messages.svelte';
     import Navbar from './components/Navbar.svelte';
     import Notes from './components/Notes.svelte';
+    import Tabs from './components/Tabs.svelte';
     import TimeSummary from './components/TimeSummary.svelte';
     import ToDo from './components/ToDo.svelte';
     import WorkTime from './components/WorkTime.svelte';
-    import { _WTT } from './utils';
+    import { app } from '$lib/store.svelte.js';
+    import { theme } from '$lib/theme.svelte.js';
 
-    let data = _WTT.loadData();
-    let messages = [];
-    let tab = 0;
+    let detailsExpanded = $state(false);
+    let tab = $state('info');
+
+    const openTodos = $derived(app.data.todos.filter(todo => !todo.done).length);
+    const tabs = $derived([
+        { id: 'info', label: 'Info' },
+        { id: 'todos', label: 'To-do', count: openTodos },
+        { id: 'notes', label: 'Notes', count: app.data.notes.length },
+        { id: 'snippets', label: 'Snippets', count: app.data.snippets.length },
+    ]);
+
+    $effect(() => {
+        const root = document.documentElement;
+        root.dataset.theme = theme.resolved;
+        root.dataset.themeMode = theme.mode;
+        root.style.colorScheme = theme.resolved;
+        root.style.removeProperty('background-color');
+    });
+
+    function onBeforeUnload(event) {
+        if (app.saveStatus === 'saved') return;
+        event.preventDefault();
+        event.returnValue = '';
+    }
 </script>
 
-<Navbar bind:data bind:messages />
+<svelte:window onbeforeunload={onBeforeUnload} />
 
-<section class="section">
-    <h5 class="title is-5">Work Time Tracking</h5>
+<Navbar />
 
-    <div class="columns is-multiline is-mobile">
-        <div class="column is-9">
-            <div class="columns is-multiline is-mobile">
-                <div class="column is-12">
-                    <WorkTime bind:data bind:messages />
-                </div>
-                <div class="column is-12">
-                    <div class="tabs">
-                        <ul>
-                            <li class:is-active={tab === 0}><a href={'#'} on:click={() => (tab = 0)}>Info</a></li>
-                            <li class:is-active={tab === 1}><a href={'#'} on:click={() => (tab = 1)}>ToDo ({data.todos.filter(t => t.done !== true).length})</a></li>
-                            <li class:is-active={tab === 2}><a href={'#'} on:click={() => (tab = 2)}>Notes ({data.notes.length})</a></li>
-                            <li class:is-active={tab === 3}><a href={'#'} on:click={() => (tab = 3)}>Snippets ({data.snippets.length})</a></li>
-                        </ul>
-                    </div>
-                    {#if tab === 0}
-                        <div class="notification">
-                            Use work time tracking to handle daily items: work time per issue (like JIRA ref), current todo lists and notes. Work time is summarized to help entering work time
-                            data to your organization's time management system at the end of the day. You can also maintain often used code snippets for easy access. Navigation bar provides
-                            access to links and searches most frequently needed. You can alter the configuration from the Config section. You can export/import your data by using the Full
-                            Config option in the Config section.
+<main class="app-main">
+    <section class="main-col">
+        <WorkTime />
+
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Info / To-do / Notes / Snippets</h2>
+                <ActionButton
+                    label={detailsExpanded ? 'Collapse section' : 'Expand section'}
+                    icon={detailsExpanded ? ChevronUp : ChevronDown}
+                    onclick={() => (detailsExpanded = !detailsExpanded)} />
+            </div>
+
+            {#if detailsExpanded}
+                <Tabs {tabs} bind:active={tab} panelId="section" />
+                <div class="tab-panels">
+                    {#if tab === 'info'}
+                        <div class="info-panel" id="section-info" role="tabpanel" aria-labelledby="section-tab-info" tabindex="0">
+                            <p>
+                                Use work time tracking to handle daily items: work time per issue (like a JIRA reference), current to-do lists and notes. Work time is summarized to
+                                help entering work time data to your organization's time management system at the end of the day.
+                            </p>
+                            <p>
+                                You can also maintain often-used code snippets for easy access. The navigation bar provides links and searches you need most frequently. Change
+                                settings from Config, and export/import everything with the Full Config JSON.
+                            </p>
                         </div>
-                    {:else if tab === 1}
-                        <ToDo bind:data bind:messages />
-                    {:else if tab === 2}
-                        <Notes bind:data bind:messages />
-                    {:else if tab === 3}
-                        <CodeSnippets bind:data bind:messages />
+                    {:else if tab === 'todos'}
+                        <div class="tab-panel" id="section-todos" role="tabpanel" aria-labelledby="section-tab-todos">
+                            <ToDo />
+                        </div>
+                    {:else if tab === 'notes'}
+                        <div class="tab-panel" id="section-notes" role="tabpanel" aria-labelledby="section-tab-notes">
+                            <Notes />
+                        </div>
+                    {:else if tab === 'snippets'}
+                        <div class="tab-panel" id="section-snippets" role="tabpanel" aria-labelledby="section-tab-snippets">
+                            <CodeSnippets />
+                        </div>
                     {/if}
                 </div>
-            </div>
+            {/if}
         </div>
-        <div class="column is-3">
-            <div class="columns is-multiline is-mobile">
-                <div class="column is-12">
-                    <TimeSummary bind:data />
-                </div>
-                <div class="column is-12">
-                    <Config bind:data bind:messages />
-                </div>
-                <div class="column is-12">
-                    <Messages bind:messages />
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
+    </section>
+
+    <aside class="side-col">
+        <TimeSummary />
+        <Config />
+        <Messages />
+    </aside>
+</main>

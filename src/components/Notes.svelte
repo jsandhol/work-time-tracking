@@ -1,148 +1,154 @@
 <script>
-    import { _WTT } from '../utils';
-    import Button from './Button.svelte';
+    import { SvelteSet } from 'svelte/reactivity';
+    import ActionButton from './ActionButton.svelte';
+    import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
+    import Check from '@lucide/svelte/icons/check';
+    import ChevronDown from '@lucide/svelte/icons/chevron-down';
+    import ChevronUp from '@lucide/svelte/icons/chevron-up';
+    import Save from '@lucide/svelte/icons/save';
+    import Trash2 from '@lucide/svelte/icons/trash-2';
+    import X from '@lucide/svelte/icons/x';
+    import { addNote, app, markDirty, notify, removeNote, saveNow, sortNotes } from '$lib/store.svelte.js';
 
-    export let data;
-    export let messages = [];
+    let filterCategory = $state('');
+    let filterTitle = $state('');
+    let newCategory = $state('');
+    let newTitle = $state('');
+    let newNote = $state('');
+    let showNewNote = $state(false);
+    let categoryInput = $state();
+    const expanded = new SvelteSet();
 
-    let addCategory;
-    let addTitle;
-    let addNote;
+    const visibleNotes = $derived.by(() => {
+        const category = filterCategory.trim().toLowerCase();
+        const title = filterTitle.trim().toLowerCase();
 
-    let filterCategory;
-    let filterTitle;
+        return app.data.notes.filter(note => (!category || note.category.toLowerCase().includes(category)) && (!title || note.title.toLowerCase().includes(title)));
+    });
 
-    const save = withMessage => {
-        data = _WTT.storeData(data);
-        if (withMessage) {
-            messages.push(withMessage);
-            messages = [...messages];
-        }
-    };
-
-    const set = () => {
-        if (_WTT.isNotEmptyStr(addCategory) && _WTT.isNotEmptyStr(addTitle)) {
-            data.notes.push({
-                category: addCategory,
-                title: addTitle,
-                note: addNote,
-            });
-            save(`Added note ${addTitle}.`);
-            addCategory = undefined;
-            addTitle = undefined;
-            addNote = undefined;
-            document.getElementById(`newNote`).classList.add('hide');
-        } else {
-            save(`Saved data.`);
-        }
-    };
-
-    const del = index => {
-        if (confirm('Really want to remove row?')) {
-            data.notes.splice(index, 1);
-            save(`Removed row from index ${index}.`);
-        }
-    };
-
-    const show = note => {
-        let matchCategory = true;
-        let matchTitle = true;
-
-        if (_WTT.isNotEmptyStr(filterCategory)) {
-            matchCategory = note.category.toLowerCase().indexOf(filterCategory.toLowerCase()) > -1;
-        }
-        if (_WTT.isNotEmptyStr(filterTitle)) {
-            matchTitle = note.title.toLowerCase().indexOf(filterTitle.toLowerCase()) > -1;
+    function add() {
+        if (!newCategory.trim() || !newTitle.trim()) {
+            notify('Note category and title are required.', 'warning');
+            return;
         }
 
-        return matchCategory && matchTitle;
-    };
+        addNote({ category: newCategory, title: newTitle, note: newNote });
+        newCategory = '';
+        newTitle = '';
+        newNote = '';
+        showNewNote = false;
+        categoryInput?.focus();
+    }
 
-    const reload = e => {
-        if (e instanceof PointerEvent || (e instanceof KeyboardEvent && e.key === 'Enter')) {
-            data = { ...data };
-        }
-    };
+    function addOnEnter(event) {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        add();
+    }
+
+    function toggle(note) {
+        if (expanded.has(note)) expanded.delete(note);
+        else expanded.add(note);
+    }
+
+    function clearFilters() {
+        filterCategory = '';
+        filterTitle = '';
+    }
+
+    function clearCategoryFilter() {
+        filterCategory = '';
+    }
+
+    function clearTitleFilter() {
+        filterTitle = '';
+    }
 </script>
 
 <datalist id="history-note">
-    {#each data.history.notes.reverse() as ref}
-        <option value={ref} />
+    {#each app.data.history.notes as category (category)}
+        <option value={category}></option>
     {/each}
 </datalist>
 
-<table class="table is-striped is-narrow is-hoverable is-fullwidth">
-    <thead>
-        <tr>
-            <th>Category</th>
-            <th>Title</th>
-            <th class="col-last">&nbsp;</th>
-        </tr>
-        <tr>
-            <td>
-                <input
-                    class="input is-small"
-                    type="text"
-                    placeholder="Filter Category"
-                    list="history-note"
-                    bind:value={filterCategory}
-                    on:keyup={reload}
-                    on:dblclick={() => (filterCategory = undefined)} /></td>
-            <td><input class="input is-small" type="text" placeholder="Filter Title" bind:value={filterTitle} on:keyup={reload} on:dblclick={() => (filterTitle = undefined)} /></td>
-            <td>
-                <Button icon="fas fa-filter" on:click={reload} />
-            </td>
-        </tr>
-    </thead>
-    <tbody>
-        {#each data.notes as note, index}
-            {#if show(note)}
+{#if app.saveStatus !== 'saved'}
+    <div class="section-toolbar">
+        <span class="muted">{app.saveStatus === 'error' ? 'Save failed' : 'Unsaved changes'}</span>
+        <button type="button" class="btn {app.saveStatus === 'error' ? 'btn-danger' : 'btn-success'}" onclick={saveNow}>
+            <Save size={13} aria-hidden="true" /> {app.saveStatus === 'error' ? 'Retry save' : 'Save'}
+        </button>
+    </div>
+{/if}
+
+<div class="table-wrap">
+    <table class="table">
+        <thead>
+            <tr>
+                <th scope="col">Category</th>
+                <th scope="col">Title</th>
+                <th scope="col" class="col-actions" aria-label="Actions"></th>
+            </tr>
+            <tr class="filter-row">
+                <td>
+                    <input type="search" placeholder="Filter category" aria-label="Filter notes by category" list="history-note" bind:value={filterCategory} ondblclick={clearCategoryFilter} />
+                </td>
+                <td>
+                    <input type="search" placeholder="Filter title" aria-label="Filter notes by title" bind:value={filterTitle} ondblclick={clearTitleFilter} />
+                </td>
+                <td class="col-actions">
+                    <ActionButton label="Clear filters" icon={X} onclick={clearFilters} />
+                    <ActionButton label="Sort notes" icon={ArrowUpDown} onclick={sortNotes} />
+                </td>
+            </tr>
+        </thead>
+        <tbody>
+            {#each visibleNotes as note (note)}
                 <tr>
-                    <td><input class="input is-small" type="text" placeholder="Category" list="history-note" bind:value={note.category} /></td>
-                    <td><input class="input is-small" type="text" placeholder="Title" bind:value={note.title} /></td>
-                    <td>
-                        <div class="field is-grouped">
-                            <p class="control">
-                                <Button clas="is-danger" icon="far fa-trash-alt" on:click={() => del(index)} />
-                                <Button icon="fas fa-expand" on:click={() => document.getElementById(`note_${index}`).classList.toggle('hide')} />
-                            </p>
-                        </div>
+                    <td><input type="text" aria-label="Note category" list="history-note" bind:value={note.category} oninput={markDirty} /></td>
+                    <td><input type="text" aria-label="Note title" bind:value={note.title} oninput={markDirty} /></td>
+                    <td class="col-actions">
+                        <ActionButton
+                            label={expanded.has(note) ? 'Hide note text' : 'Show note text'}
+                            icon={expanded.has(note) ? ChevronUp : ChevronDown}
+                            onclick={() => toggle(note)} />
+                        <ActionButton
+                            label="Delete note"
+                            icon={Trash2}
+                            variant="danger"
+                            onclick={() => {
+                                if (confirm('Really want to remove row?')) removeNote(note);
+                            }} />
                     </td>
                 </tr>
-                <tr id={`note_${index}`} class="hide">
-                    <td colspan="2"><textarea class="textarea is-small" placeholder="Note" bind:value={note.note} /></td>
-                    <td>&nbsp;</td>
+                {#if expanded.has(note)}
+                    <tr class="detail-row">
+                        <td colspan="3"><textarea rows="3" placeholder="Note" aria-label="Note text" bind:value={note.note} oninput={markDirty}></textarea></td>
+                    </tr>
+                {/if}
+            {/each}
+            {#if visibleNotes.length === 0}
+                <tr>
+                    <td colspan="3" class="muted">No notes match the current view.</td>
                 </tr>
             {/if}
-        {/each}
-    </tbody>
-    <tfoot>
-        <tr>
-            <th>New Category</th>
-            <th>New Title</th>
-            <th class="col-last">&nbsp;</th>
-        </tr>
-        <tr>
-            <td><input class="input is-small" type="text" placeholder="Category" list="history-note" bind:value={addCategory} /></td>
-            <td><input class="input is-small" type="text" placeholder="Title" bind:value={addTitle} /></td>
-            <td>
-                <div class="field is-grouped">
-                    <p class="control">
-                        <Button clas="is-success" icon="fas fa-check" on:click={() => set()} />
-                        <Button icon="fas fa-expand" on:click={() => document.getElementById(`newNote`).classList.toggle('hide')} />
-                    </p>
-                </div>
-            </td>
-        </tr>
-        <tr id="newNote" class="hide">
-            <td colspan="2"><textarea class="textarea is-small" placeholder="Note" bind:value={addNote} /></td>
-            <td>&nbsp;</td>
-        </tr>
-    </tfoot>
-</table>
-
-<style>
-    .col-last {
-        width: 80px;
-    }
-</style>
+        </tbody>
+        <tfoot>
+            <tr>
+                <td><input type="text" placeholder="New category" aria-label="New note category" list="history-note" bind:this={categoryInput} bind:value={newCategory} /></td>
+                <td><input type="text" placeholder="New title" aria-label="New note title" bind:value={newTitle} onkeydown={addOnEnter} /></td>
+                <td class="col-actions">
+                    <ActionButton
+                        label={showNewNote ? 'Hide new note text' : 'Show new note text'}
+                        icon={showNewNote ? ChevronUp : ChevronDown}
+                        onclick={() => (showNewNote = !showNewNote)} />
+                    <ActionButton label="Add note" icon={Check} variant="success" onclick={add} />
+                </td>
+            </tr>
+            {#if showNewNote}
+                <tr class="detail-row">
+                    <td colspan="3"><textarea rows="3" placeholder="Note text" aria-label="New note text" bind:value={newNote}></textarea></td>
+                </tr>
+            {/if}
+        </tfoot>
+    </table>
+</div>

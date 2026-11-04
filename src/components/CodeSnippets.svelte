@@ -1,173 +1,186 @@
 <script>
-    import { _WTT } from '../utils';
-    import Button from './Button.svelte';
-    import HighlightCode from './HighlightCode.svelte';
+    import { SvelteSet } from 'svelte/reactivity';
+    import ActionButton from './ActionButton.svelte';
+    import CodeBlock from './CodeBlock.svelte';
+    import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
+    import Check from '@lucide/svelte/icons/check';
+    import ChevronDown from '@lucide/svelte/icons/chevron-down';
+    import ChevronUp from '@lucide/svelte/icons/chevron-up';
+    import Copy from '@lucide/svelte/icons/copy';
+    import Eye from '@lucide/svelte/icons/eye';
+    import Pencil from '@lucide/svelte/icons/pencil';
+    import Save from '@lucide/svelte/icons/save';
+    import Trash2 from '@lucide/svelte/icons/trash-2';
+    import X from '@lucide/svelte/icons/x';
+    import { addSnippet, app, markDirty, notify, removeSnippet, saveNow, sortSnippets } from '$lib/store.svelte.js';
 
-    export let data;
-    export let messages = [];
+    let filterLang = $state('');
+    let filterTitle = $state('');
+    let newLang = $state('');
+    let newTitle = $state('');
+    let newSnippet = $state('');
+    let showNewSnippet = $state(false);
+    let langInput = $state();
+    const expanded = new SvelteSet();
+    const editing = new SvelteSet();
 
-    let addLang;
-    let addTitle;
-    let addSnippet;
+    const visibleSnippets = $derived.by(() => {
+        const lang = filterLang.trim().toLowerCase();
+        const title = filterTitle.trim().toLowerCase();
 
-    let filterLang;
-    let filterTitle;
+        return app.data.snippets.filter(snippet => (!lang || snippet.lang.toLowerCase().includes(lang)) && (!title || snippet.title.toLowerCase().includes(title)));
+    });
 
-    let langs = ['bash', 'basic', 'dos', 'html', 'java', 'javascript', 'json', 'sql', 'text', 'typescript', 'xml'];
-    let edit = false;
-
-    const save = withMessage => {
-        data = _WTT.storeData(data);
-        if (withMessage) {
-            messages.push(withMessage);
-            messages = [...messages];
-        }
-    };
-
-    const set = () => {
-        if (_WTT.isNotEmptyStr(addLang) && _WTT.isNotEmptyStr(addTitle)) {
-            data.snippets.push({
-                lang: addLang,
-                title: addTitle,
-                snippet: addSnippet,
-            });
-            save(`Added snippet ${addTitle}.`);
-            addLang = undefined;
-            addTitle = undefined;
-            addSnippet = undefined;
-            document.getElementById(`newSnippet`).classList.add('hide');
-        } else {
-            save(`Saved data.`);
-        }
-    };
-
-    const del = index => {
-        if (confirm('Really want to remove row?')) {
-            data.snippets.splice(index, 1);
-            save(`Removed row from index ${index}.`);
-        }
-    };
-
-    const show = snippet => {
-        let matchLang = true;
-        let matchTitle = true;
-
-        if (_WTT.isNotEmptyStr(filterLang)) {
-            matchLang = snippet.lang.toLowerCase().indexOf(filterLang.toLowerCase()) > -1;
-        }
-        if (_WTT.isNotEmptyStr(filterTitle)) {
-            matchTitle = snippet.title.toLowerCase().indexOf(filterTitle.toLowerCase()) > -1;
+    function add() {
+        if (!newLang.trim() || !newTitle.trim()) {
+            notify('Snippet language and title are required.', 'warning');
+            return;
         }
 
-        return matchLang && matchTitle;
-    };
+        addSnippet({ lang: newLang, title: newTitle, snippet: newSnippet });
+        newLang = '';
+        newTitle = '';
+        newSnippet = '';
+        showNewSnippet = false;
+        langInput?.focus();
+    }
 
-    const reload = e => {
-        if (e instanceof PointerEvent || (e instanceof KeyboardEvent && e.key === 'Enter')) {
-            data = { ...data };
+    function addOnEnter(event) {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        add();
+    }
+
+    function toggleExpanded(snippet) {
+        if (expanded.has(snippet)) expanded.delete(snippet);
+        else expanded.add(snippet);
+    }
+
+    function toggleEditing(snippet) {
+        if (editing.has(snippet)) editing.delete(snippet);
+        else editing.add(snippet);
+    }
+
+    async function copy(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+            notify('Copied to clipboard.', 'success');
+        } catch (error) {
+            notify(`Could not copy: ${error instanceof Error ? error.message : String(error)}`, 'error');
         }
-    };
+    }
 
-    const copy = snippet => {
-        navigator.clipboard.writeText(snippet);
-        messages.push('Copied to clipboard.');
-        messages = [...messages];
-    };
+    function clearFilters() {
+        filterLang = '';
+        filterTitle = '';
+    }
+
+    function clearLangFilter() {
+        filterLang = '';
+    }
+
+    function clearTitleFilter() {
+        filterTitle = '';
+    }
 </script>
 
 <datalist id="history-lang">
-    {#each langs as lang}
-        <option value={lang} />
+    {#each app.data.history.snippets as lang (lang)}
+        <option value={lang}></option>
     {/each}
 </datalist>
 
-<table class="table is-striped is-narrow is-hoverable is-fullwidth">
-    <thead>
-        <tr>
-            <th>Language</th>
-            <th>Title</th>
-            <th class="col-last">&nbsp;</th>
-        </tr>
-        <tr>
-            <td>
-                <input
-                    class="input is-small"
-                    type="text"
-                    placeholder="Filter Language"
-                    list="history-lang"
-                    bind:value={filterLang}
-                    on:keyup={reload}
-                    on:dblclick={() => (filterLang = undefined)} /></td>
-            <td>
-                <input class="input is-small" type="text" placeholder="Filter Title" bind:value={filterTitle} on:keyup={reload} on:dblclick={() => (filterTitle = undefined)} />
-            </td>
-            <td>
-                <Button icon="fas fa-filter" on:click={reload} />
-            </td>
-        </tr>
-    </thead>
-    <tbody>
-        {#each data.snippets as snippet, index}
-            {#if show(snippet)}
+{#if app.saveStatus !== 'saved'}
+    <div class="section-toolbar">
+        <span class="muted">{app.saveStatus === 'error' ? 'Save failed' : 'Unsaved changes'}</span>
+        <button type="button" class="btn {app.saveStatus === 'error' ? 'btn-danger' : 'btn-success'}" onclick={saveNow}>
+            <Save size={13} aria-hidden="true" /> {app.saveStatus === 'error' ? 'Retry save' : 'Save'}
+        </button>
+    </div>
+{/if}
+
+<div class="table-wrap">
+    <table class="table">
+        <thead>
+            <tr>
+                <th scope="col">Language</th>
+                <th scope="col">Title</th>
+                <th scope="col" class="col-actions" aria-label="Actions"></th>
+            </tr>
+            <tr class="filter-row">
+                <td>
+                    <input type="search" placeholder="Filter language" aria-label="Filter snippets by language" list="history-lang" bind:value={filterLang} ondblclick={clearLangFilter} />
+                </td>
+                <td>
+                    <input type="search" placeholder="Filter title" aria-label="Filter snippets by title" bind:value={filterTitle} ondblclick={clearTitleFilter} />
+                </td>
+                <td class="col-actions">
+                    <ActionButton label="Clear filters" icon={X} onclick={clearFilters} />
+                    <ActionButton label="Sort snippets" icon={ArrowUpDown} onclick={sortSnippets} />
+                </td>
+            </tr>
+        </thead>
+        <tbody>
+            {#each visibleSnippets as snippet (snippet)}
                 <tr>
-                    <td><input class="input is-small" type="text" placeholder="Language" list="history-lang" bind:value={snippet.lang} /></td>
-                    <td><input class="input is-small" type="text" placeholder="Title" bind:value={snippet.title} /></td>
-                    <td>
-                        <div class="field is-grouped">
-                            <p class="control">
-                                <Button clas="is-danger" icon="far fa-trash-alt" on:click={() => del(index)} />
-                                <Button icon="fas fa-expand" on:click={() => document.getElementById(`snippet_${index}`).classList.toggle('hide')} />
-                            </p>
-                        </div>
+                    <td><input type="text" aria-label="Snippet language" list="history-lang" bind:value={snippet.lang} oninput={markDirty} /></td>
+                    <td><input type="text" aria-label="Snippet title" bind:value={snippet.title} oninput={markDirty} /></td>
+                    <td class="col-actions">
+                        <ActionButton
+                            label={expanded.has(snippet) ? 'Hide snippet' : 'Show snippet'}
+                            icon={expanded.has(snippet) ? ChevronUp : ChevronDown}
+                            onclick={() => toggleExpanded(snippet)} />
+                        <ActionButton
+                            label="Delete snippet"
+                            icon={Trash2}
+                            variant="danger"
+                            onclick={() => {
+                                if (confirm('Really want to remove row?')) removeSnippet(snippet);
+                            }} />
                     </td>
                 </tr>
-                <tr id={`snippet_${index}`} class="hide">
-                    <td colspan="2">
-                        {#if edit}
-                            <textarea class="textarea is-small" placeholder="Snippet" bind:value={snippet.snippet} />
-                        {:else}
-                            <HighlightCode lang={snippet.lang} code={snippet.snippet} />
-                        {/if}
-                    </td>
-                    <td>
-                        <div class="field is-grouped">
-                            <p class="control">
-                                <Button icon="far fa-copy" on:click={() => copy(snippet.snippet)} />
-                                <Button icon="far {edit ? 'fa-eye' : 'fa-edit'}" on:click={() => (edit = !edit)} />
-                            </p>
-                        </div>
-                    </td>
+                {#if expanded.has(snippet)}
+                    <tr class="detail-row">
+                        <td colspan="2">
+                            {#if editing.has(snippet)}
+                                <textarea rows="5" placeholder="Snippet" aria-label="Snippet code" bind:value={snippet.snippet} oninput={markDirty}></textarea>
+                            {:else}
+                                <CodeBlock code={snippet.snippet} lang={snippet.lang} />
+                            {/if}
+                        </td>
+                        <td class="col-actions">
+                            <ActionButton label="Copy snippet" icon={Copy} onclick={() => copy(snippet.snippet)} />
+                            <ActionButton
+                                label={editing.has(snippet) ? 'View highlighted code' : 'Edit snippet'}
+                                icon={editing.has(snippet) ? Eye : Pencil}
+                                onclick={() => toggleEditing(snippet)} />
+                        </td>
+                    </tr>
+                {/if}
+            {/each}
+            {#if visibleSnippets.length === 0}
+                <tr>
+                    <td colspan="3" class="muted">No snippets match the current view.</td>
                 </tr>
             {/if}
-        {/each}
-    </tbody>
-    <tfoot>
-        <tr>
-            <th>New Language</th>
-            <th>New Title</th>
-            <th class="col-last">&nbsp;</th>
-        </tr>
-        <tr>
-            <td><input class="input is-small" type="text" placeholder="Language" list="history-lang" bind:value={addLang} /></td>
-            <td><input class="input is-small" type="text" placeholder="Title" bind:value={addTitle} /></td>
-            <td>
-                <div class="field is-grouped">
-                    <p class="control">
-                        <Button clas="is-success" icon="fas fa-check" on:click={() => set()} />
-                        <Button icon="fas fa-expand" on:click={() => document.getElementById(`newSnippet`).classList.toggle('hide')} />
-                    </p>
-                </div>
-            </td>
-        </tr>
-        <tr id="newSnippet" class="hide">
-            <td colspan="2"><textarea class="textarea is-small" placeholder="Snippet" bind:value={addSnippet} /></td>
-            <td>&nbsp;</td>
-        </tr>
-    </tfoot>
-</table>
-
-<style>
-    .col-last {
-        width: 80px;
-    }
-</style>
+        </tbody>
+        <tfoot>
+            <tr>
+                <td><input type="text" placeholder="New language" aria-label="New snippet language" list="history-lang" bind:this={langInput} bind:value={newLang} /></td>
+                <td><input type="text" placeholder="New title" aria-label="New snippet title" bind:value={newTitle} onkeydown={addOnEnter} /></td>
+                <td class="col-actions">
+                    <ActionButton
+                        label={showNewSnippet ? 'Hide new snippet' : 'Show new snippet'}
+                        icon={showNewSnippet ? ChevronUp : ChevronDown}
+                        onclick={() => (showNewSnippet = !showNewSnippet)} />
+                    <ActionButton label="Add snippet" icon={Check} variant="success" onclick={add} />
+                </td>
+            </tr>
+            {#if showNewSnippet}
+                <tr class="detail-row">
+                    <td colspan="3"><textarea rows="5" placeholder="Snippet text" aria-label="New snippet code" bind:value={newSnippet}></textarea></td>
+                </tr>
+            {/if}
+        </tfoot>
+    </table>
+</div>

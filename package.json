@@ -1,25 +1,28 @@
 {
-    "name": "svelte-app",
-    "version": "1.0.0",
+    "name": "work-time-tracking",
+    "version": "2.0.0",
     "private": true,
     "type": "module",
-    "scripts": {
-        "build": "rollup -c",
-        "dev": "rollup -c -w",
-        "start": "sirv public --no-clear"
+    "engines": {
+        "node": ">=22.12"
     },
-    "devDependencies": {
-        "@rollup/plugin-commonjs": "^24.0.0",
-        "@rollup/plugin-node-resolve": "^15.0.0",
-        "@rollup/plugin-terser": "^0.4.0",
-        "rollup": "^3.15.0",
-        "rollup-plugin-css-only": "^4.3.0",
-        "rollup-plugin-livereload": "^2.0.0",
-        "rollup-plugin-svelte": "^7.1.2",
-        "svelte": "^3.55.0",
-        "svelte-highlight": "^7.2.1"
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview",
+        "check": "svelte-check",
+        "test": "node --test"
     },
     "dependencies": {
-        "sirv-cli": "^2.0.0"
+        "@lucide/svelte": "^1.68.0",
+        "highlight.js": "^11.12.0",
+        "svelte": "^5.57.3"
+    },
+    "devDependencies": {
+        "@sveltejs/vite-plugin-svelte": "^7.3.1",
+        "svelte-check": "^4.7.8",
+        "typescript": "^6.0.3",
+        "vite": "^8.3.5",
+        "vite-plugin-singlefile": "^2.3.4"
     }
 }
