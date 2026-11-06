@@ -6,6 +6,12 @@ Built with Svelte 5 (runes) + Vite, plain JavaScript.
 
 ![Work Time Tracking](assets/wtt.png)
 
+## Try it
+
+Use it directly at **https://jsandhol.github.io/work-time.html** — no installation required. All data is stored in your browser's `localStorage` and is never sent anywhere.
+
+Note that `localStorage` is scoped to the page's origin: data entered at the hosted URL is separate from a local build or `localhost`, and clearing site data removes it. Back up via **Config → Full Config** before clearing site data or switching between them.
+
 ## Features
 
 - Time rows with a JIRA/issue reference, description, and an `@END` marker for ending a session.
