@@ -251,6 +251,13 @@ An anonymized example of a consulting developer's day: two reporting clients, se
 
 `npm run build` writes a single self-contained `dist/work-time.html` with all JavaScript and CSS inlined. Copy that file to the site root (for example `https://jsandhol.github.io/work-time.html`). No asset folder or post-build rename step is needed.
 
+## Svelte AI Tools
+
+```bash
+npx sv add ai-tools="ide:claude-code,opencode+delivery:plugin"
+npx sv add ai-tools="ide:vscode,other+tools:mcp+mcpSetup:local"
+```
+
 ## License
 
 MIT
