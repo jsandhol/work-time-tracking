@@ -4,6 +4,8 @@ A small browser-only work time tracker. Log time per issue/reference, keep a to-
 
 Built with Svelte 5 (runes) + Vite, plain JavaScript.
 
+![Work Time Tracking](assets/wtt.png)
+
 ## Features
 
 - Time rows with a JIRA/issue reference, description, and an `@END` marker for ending a session.
