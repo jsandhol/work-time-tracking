@@ -4,3 +4,17 @@
 .DS_Store
 .*
 !.gitignore
+
+# Shared AI-tool configs (settings.local.json stays ignored)
+!.claude/
+.claude/*
+!.claude/settings.json
+
+!.opencode/
+.opencode/*
+!.opencode/opencode.json
+!.opencode/svelte.json
+
+!.vscode/
+.vscode/*
+!.vscode/mcp.json
