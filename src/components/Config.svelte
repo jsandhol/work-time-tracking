@@ -16,6 +16,8 @@
     let historyLimit = $state(app.data.config.history);
     let newTitle = $state('');
     let newHref = $state('');
+    let newRoutePattern = $state('');
+    let newRouteUrl = $state('');
     let newSystemLabel = $state('');
 
     function loadCurrent() {
@@ -49,6 +51,30 @@
         newTitle = '';
         newHref = '';
         if (saveNow()) notify('Link added.', 'success');
+    }
+
+    function addRoute() {
+        const pattern = newRoutePattern.trim();
+        const url = newRouteUrl.trim();
+        if (!pattern || !url) {
+            notify('Route pattern and browse URL are required.', 'warning');
+            return;
+        }
+
+        app.data.config.search.issue_routes.push({ pattern, url });
+        newRoutePattern = '';
+        newRouteUrl = '';
+        if (saveNow()) notify('Issue route added.', 'success');
+    }
+
+    function removeRoute(route) {
+        if (!confirm(`Remove issue route "${route.pattern}"?`)) return;
+
+        const routes = app.data.config.search.issue_routes;
+        const index = routes.indexOf(route);
+        if (index === -1) throw new Error('Issue route not found.');
+        routes.splice(index, 1);
+        if (saveNow()) notify('Issue route removed.', 'success');
     }
 
     function removeLink(link) {
@@ -164,7 +190,7 @@
                     <span></span>
                 </div>
                 <div class="config-row">
-                    <label for="search-issues">Issues</label>
+                    <label for="search-issues">Issue search</label>
                     <input id="search-issues" type="text" bind:value={app.data.config.search.issues} oninput={markDirty} />
                     <span></span>
                 </div>
@@ -178,6 +204,25 @@
                     <input id="search-sof" type="text" bind:value={app.data.config.search.sof} oninput={markDirty} />
                     <span></span>
                 </div>
+            </div>
+
+            <div class="config-section">
+                <h3 class="config-section-title">Issue browse routes</h3>
+                <div class="config-links">
+                    {#each app.data.config.search.issue_routes as route (route)}
+                        <div class="link-row">
+                            <input type="text" aria-label="Issue route pattern" placeholder="Pattern (regex)" bind:value={route.pattern} oninput={markDirty} />
+                            <input type="text" aria-label="Issue route browse URL" placeholder={'https://host/browse/{id}'} bind:value={route.url} oninput={markDirty} />
+                            <ActionButton label="Remove issue route" icon={Trash2} variant="danger" onclick={() => removeRoute(route)} />
+                        </div>
+                    {/each}
+                    <div class="link-row">
+                        <input type="text" placeholder="New pattern" aria-label="New issue route pattern" bind:value={newRoutePattern} />
+                        <input type="text" placeholder="New browse URL" aria-label="New issue route browse URL" bind:value={newRouteUrl} />
+                        <ActionButton label="Add issue route" icon={Plus} variant="success" onclick={addRoute} />
+                    </div>
+                </div>
+                <p class="muted">Patterns are JavaScript regular expressions tested against the reference in order; the first match opens its browse URL. Matching is case-sensitive. References matching no pattern (and @END) keep the Open button disabled.</p>
             </div>
 
             <div class="config-section">

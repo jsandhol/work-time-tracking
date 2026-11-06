@@ -2,6 +2,7 @@
     import { SvelteSet } from 'svelte/reactivity';
     import ActionButton from './ActionButton.svelte';
     import CodeBlock from './CodeBlock.svelte';
+    import CodeEditor from './CodeEditor.svelte';
     import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
     import Check from '@lucide/svelte/icons/check';
     import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -9,10 +10,9 @@
     import Copy from '@lucide/svelte/icons/copy';
     import Eye from '@lucide/svelte/icons/eye';
     import Pencil from '@lucide/svelte/icons/pencil';
-    import Save from '@lucide/svelte/icons/save';
     import Trash2 from '@lucide/svelte/icons/trash-2';
     import X from '@lucide/svelte/icons/x';
-    import { addSnippet, app, markDirty, notify, removeSnippet, saveNow, sortSnippets } from '$lib/store.svelte.js';
+    import { addSnippet, app, markDirty, notify, removeSnippet, sortSnippets } from '$lib/store.svelte.js';
 
     let filterLang = $state('');
     let filterTitle = $state('');
@@ -90,15 +90,6 @@
     {/each}
 </datalist>
 
-{#if app.saveStatus !== 'saved'}
-    <div class="section-toolbar">
-        <span class="muted">{app.saveStatus === 'error' ? 'Save failed' : 'Unsaved changes'}</span>
-        <button type="button" class="btn {app.saveStatus === 'error' ? 'btn-danger' : 'btn-success'}" onclick={saveNow}>
-            <Save size={13} aria-hidden="true" /> {app.saveStatus === 'error' ? 'Retry save' : 'Save'}
-        </button>
-    </div>
-{/if}
-
 <div class="table-wrap">
     <table class="table">
         <thead>
@@ -143,7 +134,7 @@
                     <tr class="detail-row">
                         <td colspan="2">
                             {#if editing.has(snippet)}
-                                <textarea rows="5" placeholder="Snippet" aria-label="Snippet code" bind:value={snippet.snippet} oninput={markDirty}></textarea>
+                                <CodeEditor bind:value={snippet.snippet} lang={snippet.lang} label="Snippet code" placeholder="Snippet" oninput={markDirty} />
                             {:else}
                                 <CodeBlock code={snippet.snippet} lang={snippet.lang} />
                             {/if}
@@ -178,7 +169,7 @@
             </tr>
             {#if showNewSnippet}
                 <tr class="detail-row">
-                    <td colspan="3"><textarea rows="5" placeholder="Snippet text" aria-label="New snippet code" bind:value={newSnippet}></textarea></td>
+                    <td colspan="3"><CodeEditor bind:value={newSnippet} lang={newLang} label="New snippet code" placeholder="Snippet text" /></td>
                 </tr>
             {/if}
         </tfoot>

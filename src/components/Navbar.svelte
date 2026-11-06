@@ -1,13 +1,13 @@
 <script>
     import ActionButton from './ActionButton.svelte';
     import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
-    import Check from '@lucide/svelte/icons/check';
     import Monitor from '@lucide/svelte/icons/monitor';
     import Moon from '@lucide/svelte/icons/moon';
     import Save from '@lucide/svelte/icons/save';
     import Sun from '@lucide/svelte/icons/sun';
     import { app, notify, resetAll, resetTime, saveNow } from '$lib/store.svelte.js';
     import { theme } from '$lib/theme.svelte.js';
+    import { buildSearchUrl } from '../utils.js';
 
     let searchGoogle = $state('');
     let searchGoogleAi = $state('');
@@ -25,16 +25,16 @@
               : 'Theme: dark (click for system)'
     );
 
-    function openSearch(prefix, value, encoder = encodeURIComponent) {
-        const term = value.trim();
-        if (!prefix || !term) return;
-        window.open(`${prefix}${encoder(term)}`, '_blank', 'noopener,noreferrer');
+    function openSearch(template, value) {
+        const url = buildSearchUrl(template, value);
+        if (!url) return;
+        window.open(url, '_blank', 'noopener,noreferrer');
     }
 
-    function onSearchKey(event, prefix, value, encoder = encodeURIComponent) {
+    function onSearchKey(event, template, value) {
         if (event.key !== 'Enter') return;
         event.preventDefault();
-        openSearch(prefix, value, encoder);
+        openSearch(template, value);
     }
 
     function cycleTheme() {
@@ -123,7 +123,7 @@
                     placeholder="Issue"
                     aria-label="Search issue"
                     bind:value={searchIssues}
-                    onkeydown={event => onSearchKey(event, app.data.config.search.issues, searchIssues, encodeURI)}
+                    onkeydown={event => onSearchKey(event, app.data.config.search.issues, searchIssues)}
                     ondblclick={() => (searchIssues = '')} />
             {/if}
             {#if app.data.config.search.reddit}
@@ -152,15 +152,16 @@
             <button
                 type="button"
                 class="btn save-button {app.saveStatus}"
-                disabled={app.saveStatus === 'saved'}
-                title={app.saveStatus === 'dirty' ? 'Save changes to local storage' : app.saveStatus === 'error' ? 'Retry saving' : 'All changes saved'}
+                title={app.saveStatus === 'dirty'
+                    ? 'Save changes to local storage'
+                    : app.saveStatus === 'error'
+                      ? 'Retry saving'
+                      : 'All changes saved (click to save anyway)'}
                 onclick={saveNow}>
-                {#if app.saveStatus === 'saved'}
-                    <Check size={13} aria-hidden="true" /> Saved
-                {:else if app.saveStatus === 'error'}
+                {#if app.saveStatus === 'error'}
                     <AlertTriangle size={13} aria-hidden="true" /> Retry save
                 {:else}
-                    <Save size={13} aria-hidden="true" /> Save changes
+                    <Save size={13} aria-hidden="true" /> Save
                 {/if}
             </button>
             <ActionButton label={themeLabel} icon={themeIcon} onclick={cycleTheme} />

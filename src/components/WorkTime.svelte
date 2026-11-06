@@ -7,7 +7,7 @@
     import Square from '@lucide/svelte/icons/square';
     import Trash2 from '@lucide/svelte/icons/trash-2';
     import { addTime, app, beginTime, markDirty, notify, removeTime, saveNow } from '$lib/store.svelte.js';
-    import { formatDateTime } from '../utils.js';
+    import { formatDateTime, resolveIssueUrl } from '../utils.js';
 
     let newTime = $state('');
     let newRef = $state('');
@@ -16,7 +16,7 @@
     let refInput = $state();
     let descInput = $state();
 
-    const issueSearch = $derived(app.data.config.search.issues);
+    const newIssueUrl = $derived(resolveIssueUrl(app.data.config.search.issue_routes, newRef));
 
     function startNow() {
         newTime = formatDateTime();
@@ -50,6 +50,12 @@
         commit();
     }
 
+    function onRowKeydown(event) {
+        if (event.key !== 'Enter' || event.isComposing) return;
+        event.preventDefault();
+        saveNow();
+    }
+
     function begin(time) {
         if (confirm('Really want to replace time?')) beginTime(time);
     }
@@ -58,10 +64,9 @@
         if (confirm('Really want to remove row?')) removeTime(time);
     }
 
-    function openIssue(ref) {
-        const key = String(ref ?? '').trim();
-        if (!issueSearch || !key) return;
-        window.open(`${issueSearch}${encodeURI(key)}`, '_blank', 'noopener,noreferrer');
+    function openUrl(url) {
+        if (!url) return;
+        window.open(url, '_blank', 'noopener,noreferrer');
     }
 
     function toggleReported(time, systemId) {
@@ -102,21 +107,22 @@
             </thead>
             <tbody>
                 {#each app.data.times as time (time)}
+                    {const issueUrl = $derived(resolveIssueUrl(app.data.config.search.issue_routes, time.ref))}
                     <tr>
                         <td class="col-mark"><ActionButton label="Set this row's time to now" icon={Clock} variant="warning" onclick={() => begin(time)} /></td>
                         <td><input class="mono" type="text" aria-label="Time" bind:value={time.time} oninput={markDirty} /></td>
                         <td class="col-ref">
                             <div class="ref-field">
-                                <input type="text" aria-label="Reference" list="history-refs" bind:value={time.ref} oninput={markDirty} />
+                                <input type="text" aria-label="Reference" list="history-refs" bind:value={time.ref} oninput={markDirty} onkeydown={onRowKeydown} />
                                 <ActionButton
                                     label="Open issue in a new tab"
                                     icon={Search}
                                     compact
-                                    disabled={!issueSearch || !time.ref.trim() || time.ref === '@END'}
-                                    onclick={() => openIssue(time.ref)} />
+                                    disabled={!issueUrl}
+                                    onclick={() => openUrl(issueUrl)} />
                             </div>
                         </td>
-                        <td><input type="text" aria-label="Description" bind:value={time.desc} oninput={markDirty} /></td>
+                        <td><input type="text" aria-label="Description" bind:value={time.desc} oninput={markDirty} onkeydown={onRowKeydown} /></td>
                         <td class="col-row-actions">
                             <ActionButton label="Delete row" icon={Trash2} variant="danger" onclick={() => remove(time)} />
                         </td>
@@ -170,8 +176,8 @@
                 label="Open issue in a new tab"
                 icon={Search}
                 compact
-                disabled={!issueSearch || !newRef.trim()}
-                onclick={() => openIssue(newRef)} />
+                disabled={!newIssueUrl}
+                onclick={() => openUrl(newIssueUrl)} />
         </div>
         <input class="add-desc" type="text" placeholder="New description" aria-label="New description" bind:this={descInput} bind:value={newDesc} onkeydown={onAddKeydown} />
         <div class="add-actions">

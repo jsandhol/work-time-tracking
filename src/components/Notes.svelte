@@ -5,10 +5,9 @@
     import Check from '@lucide/svelte/icons/check';
     import ChevronDown from '@lucide/svelte/icons/chevron-down';
     import ChevronUp from '@lucide/svelte/icons/chevron-up';
-    import Save from '@lucide/svelte/icons/save';
     import Trash2 from '@lucide/svelte/icons/trash-2';
     import X from '@lucide/svelte/icons/x';
-    import { addNote, app, markDirty, notify, removeNote, saveNow, sortNotes } from '$lib/store.svelte.js';
+    import { addNote, app, markDirty, notify, removeNote, sortNotes } from '$lib/store.svelte.js';
 
     let filterCategory = $state('');
     let filterTitle = $state('');
@@ -70,15 +69,6 @@
         <option value={category}></option>
     {/each}
 </datalist>
-
-{#if app.saveStatus !== 'saved'}
-    <div class="section-toolbar">
-        <span class="muted">{app.saveStatus === 'error' ? 'Save failed' : 'Unsaved changes'}</span>
-        <button type="button" class="btn {app.saveStatus === 'error' ? 'btn-danger' : 'btn-success'}" onclick={saveNow}>
-            <Save size={13} aria-hidden="true" /> {app.saveStatus === 'error' ? 'Retry save' : 'Save'}
-        </button>
-    </div>
-{/if}
 
 <div class="table-wrap">
     <table class="table">

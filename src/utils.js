@@ -18,7 +18,7 @@ export const DEFAULT_SNIPPET_LANGUAGES = Object.freeze([
 const DEFAULT_SEARCH = Object.freeze({
     google: 'https://www.google.com/search?q=',
     google_ai: 'https://www.google.com/search?udm=50&q=',
-    issues: 'https://jira.your-jira-server.com/secure/QuickSearch.jspa?searchString=',
+    issues: 'https://jira.your-jira-server.com/jira/issues/?jql=text~%22{query}%22',
     reddit: 'https://www.google.com/search?q=site.reddit.com+',
     sof: 'https://www.google.com/search?q=site.stackoverflow.com+',
 });
@@ -49,7 +49,7 @@ function isDone(value) {
 function createDefaultConfig() {
     return {
         history: DEFAULT_HISTORY_LIMIT,
-        search: { ...DEFAULT_SEARCH },
+        search: { ...DEFAULT_SEARCH, issue_routes: [] },
         links: [{ ...DEFAULT_LINK }],
         reporting: {
             systems: DEFAULT_REPORTING_SYSTEMS.map(system => ({ ...system })),
@@ -329,6 +329,21 @@ function normalizeSystems(value) {
     return systems.length > 0 ? systems : fallback();
 }
 
+function normalizeIssueRoutes(value) {
+    if (!Array.isArray(value)) return [];
+
+    const routes = [];
+    for (const item of value) {
+        if (!isPlainObject(item)) continue;
+        const pattern = asString(item.pattern).trim();
+        const url = asString(item.url).trim();
+        if (!pattern || !url) continue;
+        routes.push({ pattern, url });
+    }
+
+    return routes;
+}
+
 function normalizeConfig(rawConfig) {
     const base = createDefaultConfig();
     if (!isPlainObject(rawConfig)) return base;
@@ -338,6 +353,7 @@ function normalizeConfig(rawConfig) {
         google: asString(rawSearch.google ?? base.search.google),
         google_ai: asString(rawSearch.google_ai ?? base.search.google_ai),
         issues: asString(rawSearch.issues ?? base.search.issues),
+        issue_routes: normalizeIssueRoutes(rawSearch.issue_routes),
         reddit: asString(rawSearch.reddit ?? base.search.reddit),
         sof: asString(rawSearch.sof ?? base.search.sof),
     };
@@ -359,6 +375,31 @@ function normalizeConfig(rawConfig) {
         links,
         reporting,
     };
+}
+
+export function buildSearchUrl(template, term) {
+    const base = asString(template);
+    const value = asString(term).trim();
+    if (!base || !value) return '';
+
+    const encoded = encodeURIComponent(value);
+    return base.includes('{query}') ? base.split('{query}').join(encoded) : `${base}${encoded}`;
+}
+
+export function resolveIssueUrl(routes, ref) {
+    const key = asString(ref).trim();
+    if (!key || key === '@END' || !Array.isArray(routes)) return '';
+
+    const route = routes.find(
+        item => isPlainObject(item) && typeof item.pattern === 'string' && item.pattern !== '' && new RegExp(item.pattern).test(key)
+    );
+    if (!route) return '';
+
+    const base = asString(route.url);
+    if (!base) return '';
+
+    const encoded = encodeURIComponent(key);
+    return base.includes('{id}') ? base.split('{id}').join(encoded) : `${base}${encoded}`;
 }
 
 export function normalizeData(raw) {

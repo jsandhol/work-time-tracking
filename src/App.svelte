@@ -18,6 +18,7 @@
     let tab = $state('info');
 
     const openTodos = $derived(app.data.todos.filter(todo => !todo.done).length);
+    const totalCount = $derived(openTodos + app.data.notes.length + app.data.snippets.length);
     const tabs = $derived([
         { id: 'info', label: 'Info' },
         { id: 'todos', label: 'To-do', count: openTodos },
@@ -50,7 +51,10 @@
 
         <div class="card">
             <div class="card-header">
-                <h2 class="card-title">Info / To-do / Notes / Snippets</h2>
+                <h2 class="card-title">
+                    Info / To-do / Notes / Snippets
+                    <span class="title-count" title={`${openTodos} open to-dos · ${app.data.notes.length} notes · ${app.data.snippets.length} snippets`}>{totalCount}</span>
+                </h2>
                 <ActionButton
                     label={detailsExpanded ? 'Collapse section' : 'Expand section'}
                     icon={detailsExpanded ? ChevronUp : ChevronDown}

@@ -11,13 +11,13 @@ Built with Svelte 5 (runes) + Vite, plain JavaScript.
 - Per-reference and grand totals. The last open row counts up to the current time when the summary is refreshed or time data changes.
 - To-do list with due dates, done state, live filters, and done-last sorting.
 - Notes with categories, a remembered category history, and expandable text.
-- Code snippets with syntax highlighting, copy, and per-snippet edit mode.
+- Code snippets with live syntax highlighting while viewing and editing, plus copy.
 - Remembered reference/category history: the last N used values, most recently used first.
-- Configurable search prefixes, links, history size, and reporting clients/systems.
+- Configurable JQL issue search, regex-routed Jira browse routes, links, history size, and reporting clients/systems.
 - Light, dark, and system theme with a manual override.
-- Explicit saving: discrete data actions save immediately; inline edits and Config reporting-system changes wait for **Save**, a section Save button, or Ctrl/Cmd+S.
+- Explicit saving: discrete data actions save immediately; inline edits wait for the always-available top-bar **Save** button, Ctrl/Cmd+S, or Enter in a work-time row's Reference/Description.
 - No background timers, polling, or network activity after load.
-- Collapsible Info/To-do/Notes/Snippets section, collapsed by default.
+- Collapsible Info/To-do/Notes/Snippets section, collapsed by default, with a total badge for open to-dos, notes, and snippets.
 - Single-file production build.
 
 ## Development
@@ -41,14 +41,16 @@ The app uses two `localStorage` keys:
     - `times`, `todos`, `notes`, `snippets`
     - `history.times`, `history.notes` — most recently used first, unique, limited by `config.history`
     - `history.snippets` — the language vocabulary (default languages plus custom ones); not limited by `config.history`
-    - `config.history`, `config.search` (`google`, `google_ai`, `issues`, `reddit`, `sof`), `config.links`
+    - `config.history`, `config.search` (`google`, `google_ai`, `issues`, `issue_routes`, `reddit`, `sof`), `config.links`
+    - `config.search.issues` — JQL text-search template used by the navbar Issue field; `{query}` is replaced with the encoded search term (a template without `{query}` gets the term appended)
+    - `config.search.issue_routes` — ordered `{ pattern, url }` browse routes for the per-row Open button; `pattern` is a JavaScript regular expression tested against the reference (first match wins, case-sensitive), `{id}` is replaced with the encoded reference, and no match (or `@END`) disables Open
     - `config.reporting.systems` — the configurable customer/system time-keeping targets shown as confirmation toggles on `@END` rows; ticking one records that the work time was entered manually into that customer's system (or your own)
     - `times[].reported` — optional map of `systemId` to confirmation timestamp on `@END` rows
 - `wtt-theme` — `system`, `light`, or `dark`.
 
 Old v1 data is migrated additively on load. The old app stored its time history oldest-first in `wtt-data`, while its rendered/exported history was newest-first; the migration detects the orientation from the current time rows and converts it to a single newest-first order. The sample config below also imports correctly. The migrated shape is written on the next save or explicit action.
 
-Inline edits (existing rows, notes, links, search URLs) and Config reporting-system changes (names/add/remove) stay in memory and mark the top-bar button as **Save changes**; use that button, the local Save button at the top of To-do/Notes/Snippets, or Ctrl/Cmd+S. Discrete data actions such as Add, Delete, Reset, Import, Sort, link add/remove, begin-time, history-limit changes, and `@END` reporting toggles write immediately. The Time summary is refreshed on demand and when time data changes; it does not tick in the background.
+Inline edits (existing rows, notes, links, search URLs, and issue routes) and Config reporting-system changes (names/add/remove) stay in memory and highlight the always-clickable top-bar **Save** button; use that button, Ctrl/Cmd+S, or Enter in a work-time row's Reference/Description. Discrete data actions such as Add, Delete, Reset, Import, Sort, link/route add/remove, begin-time, history-limit changes, and `@END` reporting toggles write immediately. The Time summary is refreshed on demand and when time data changes; it does not tick in the background.
 
 `config.history = 0` disables reference/category suggestions. Changing the limit trims the remembered lists immediately and saves.
 
@@ -56,7 +58,7 @@ Use **Config → Full Config** to export/import the whole data object as JSON. T
 
 ## Sample config
 
-An anonymized example of a consulting developer's day: two reporting clients, several Jira references, realistic notes, todos, and snippets. The `@END` confirmations show that the day's time was entered manually into both clients' time-keeping systems. Replace `your-company` with your Jira host before using it. Import it through **Config → Full Config**.
+An anonymized example of a consulting developer's day: two reporting clients, several Jira references, realistic notes, todos, and snippets. The `@END` confirmations show that the day's time was entered manually into both clients' time-keeping systems. Replace `your-company`, `acme`, and `globex` with your Jira hosts before using it. Import it through **Config → Full Config**.
 
 ```json
 {
@@ -193,7 +195,21 @@ An anonymized example of a consulting developer's day: two reporting clients, se
         "search": {
             "google": "https://www.google.com/search?q=",
             "google_ai": "https://www.google.com/search?udm=50&q=",
-            "issues": "https://your-company.atlassian.net/browse/",
+            "issues": "https://your-company.atlassian.net/jira/issues/?jql=text~%22{query}%22",
+            "issue_routes": [
+                {
+                    "pattern": "^ACME-",
+                    "url": "https://acme.atlassian.net/browse/{id}"
+                },
+                {
+                    "pattern": "^GLOBEX-",
+                    "url": "https://globex.atlassian.net/browse/{id}"
+                },
+                {
+                    "pattern": "^(PLATFORM|OPS)-",
+                    "url": "https://your-company.atlassian.net/browse/{id}"
+                }
+            ],
             "reddit": "https://www.google.com/search?q=site.reddit.com+",
             "sof": "https://www.google.com/search?q=site.stackoverflow.com+"
         },

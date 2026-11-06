@@ -2,10 +2,9 @@
     import ActionButton from './ActionButton.svelte';
     import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
     import Check from '@lucide/svelte/icons/check';
-    import Save from '@lucide/svelte/icons/save';
     import Trash2 from '@lucide/svelte/icons/trash-2';
     import X from '@lucide/svelte/icons/x';
-    import { addTodo, app, markDirty, notify, removeTodo, saveNow, sortTodos } from '$lib/store.svelte.js';
+    import { addTodo, app, markDirty, notify, removeTodo, sortTodos } from '$lib/store.svelte.js';
     import { formatDate, sortTodosInPlace } from '../utils.js';
 
     let filterTitle = $state('');
@@ -59,15 +58,6 @@
         markDirty();
     }
 </script>
-
-{#if app.saveStatus !== 'saved'}
-    <div class="section-toolbar">
-        <span class="muted">{app.saveStatus === 'error' ? 'Save failed' : 'Unsaved changes'}</span>
-        <button type="button" class="btn {app.saveStatus === 'error' ? 'btn-danger' : 'btn-success'}" onclick={saveNow}>
-            <Save size={13} aria-hidden="true" /> {app.saveStatus === 'error' ? 'Retry save' : 'Save'}
-        </button>
-    </div>
-{/if}
 
 <div class="table-wrap">
     <table class="table">

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { highlightCode } from '../src/lib/highlight.js';
 import {
+    buildSearchUrl,
     calcTotals,
     formatDate,
     formatDateTime,
@@ -9,6 +10,7 @@ import {
     normalizeData,
     normalizeHistoryLimit,
     parseLocalDateTime,
+    resolveIssueUrl,
     touchHistory,
 } from '../src/utils.js';
 
@@ -186,6 +188,63 @@ test('adds the Google AI search prefix and keeps the existing SOF prefix', () =>
     const raw = structuredClone(SAMPLE);
     raw.config.search.google_ai = 'https://example.com/ai?q=';
     assert.equal(normalizeData(raw).config.search.google_ai, 'https://example.com/ai?q=');
+});
+
+test('builds search URLs with an encoded query and a fallback append', () => {
+    assert.equal(
+        buildSearchUrl('https://company.atlassian.net/jira/issues/?jql=text~%22{query}%22', 'invoice export'),
+        'https://company.atlassian.net/jira/issues/?jql=text~%22invoice%20export%22'
+    );
+    assert.equal(buildSearchUrl('https://example.com/search?q=', 'a&b'), 'https://example.com/search?q=a%26b');
+    assert.equal(buildSearchUrl('https://example.com/search?q=', '  '), '');
+    assert.equal(buildSearchUrl('', 'term'), '');
+});
+
+test('resolves issue browse URLs with ordered regex patterns', () => {
+    const routes = [
+        { pattern: '^ACME-1', url: 'https://special.atlassian.net/browse/{id}' },
+        { pattern: '^(ACME|GLOBEX)-', url: 'https://acme.atlassian.net/browse/{id}' },
+        { pattern: '^OPS-\\d+$', url: 'https://ops.atlassian.net/browse/' },
+    ];
+
+    assert.equal(resolveIssueUrl(routes, 'ACME-123'), 'https://special.atlassian.net/browse/ACME-123');
+    assert.equal(resolveIssueUrl(routes, 'ACME-42'), 'https://acme.atlassian.net/browse/ACME-42');
+    assert.equal(resolveIssueUrl(routes, ' GLOBEX-7 '), 'https://acme.atlassian.net/browse/GLOBEX-7');
+    assert.equal(resolveIssueUrl(routes, 'OPS-220'), 'https://ops.atlassian.net/browse/OPS-220');
+    assert.equal(resolveIssueUrl(routes, 'OPS-abc'), '');
+    assert.equal(resolveIssueUrl(routes, 'acme-42'), '');
+    assert.equal(resolveIssueUrl(routes, 'Admin'), '');
+    assert.equal(resolveIssueUrl(routes, '@END'), '');
+    assert.equal(resolveIssueUrl(routes, ''), '');
+    assert.equal(resolveIssueUrl([], 'ACME-1'), '');
+    assert.equal(resolveIssueUrl(undefined, 'ACME-1'), '');
+});
+
+test('normalizes issue browse routes and preserves their order', () => {
+    const raw = structuredClone(SAMPLE);
+    raw.config.search.issues = 'https://company.atlassian.net/jira/issues/?jql=text~%22{query}%22';
+    raw.config.search.issue_routes = [
+        { pattern: ' ^(ACME|GLOBEX)- ', url: ' https://acme.atlassian.net/browse/{id} ' },
+        { pattern: '', url: 'https://ignored.example/' },
+        { pattern: '^OPS-', url: '' },
+        'not a route',
+        { pattern: '^OPS-\\d+$', url: 'https://ops.atlassian.net/browse/{id}' },
+    ];
+
+    const data = normalizeData(raw);
+    assert.deepEqual(data.config.search.issue_routes, [
+        { pattern: '^(ACME|GLOBEX)-', url: 'https://acme.atlassian.net/browse/{id}' },
+        { pattern: '^OPS-\\d+$', url: 'https://ops.atlassian.net/browse/{id}' },
+    ]);
+    assert.equal(data.config.search.issues, raw.config.search.issues);
+});
+
+test('defaults issue browse routes to an empty list and the issue search to JQL', () => {
+    const sample = normalizeData(structuredClone(SAMPLE));
+    assert.deepEqual(sample.config.search.issue_routes, []);
+
+    const defaults = normalizeData({});
+    assert.equal(defaults.config.search.issues, 'https://jira.your-jira-server.com/jira/issues/?jql=text~%22{query}%22');
 });
 
 test('normalizes history limits', () => {
